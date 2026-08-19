@@ -1,0 +1,23 @@
+{
+  "name": "rosterup-sit725",
+  "version": "1.0.0",
+  "description": "RosterUp is a platform for shift-cover coordination designed to put an end to the ad-hoc nature of group-chat swapping in retail and hospitality.",
+  "homepage": "https://github.com/sahancz/rosterup-sit725#readme",
+  "bugs": {
+    "url": "https://github.com/sahancz/rosterup-sit725/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sahancz/rosterup-sit725.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
