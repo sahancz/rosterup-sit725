@@ -111,17 +111,6 @@ function shiftCardHtml(shift) {
   `;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : String(str);
-  return div.innerHTML;
-}
-
-function capitalize(word) {
-  if (!word) return '';
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
 async function handleLogout(e) {
   e.preventDefault();
   const token = localStorage.getItem('rosterup_token');

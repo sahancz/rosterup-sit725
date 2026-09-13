@@ -138,21 +138,11 @@ function previewCardHtml(shift) {
   `;
 }
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : String(str);
-  return div.innerHTML;
-}
-
 function timeOfDayGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
-}
-
-function capitalize(word) {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 async function handleLogout(e) {

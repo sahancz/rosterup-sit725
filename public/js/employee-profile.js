@@ -71,11 +71,6 @@ async function refreshUser() {
   }
 }
 
-function capitalize(word) {
-  if (!word) return '';
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
 async function handleLogout(e) {
   e.preventDefault();
   const token = localStorage.getItem('rosterup_token');
