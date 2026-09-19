@@ -59,9 +59,59 @@ function buildGetMyWorkplaceController(service = workplaceService) {
 
 const getMyWorkplace = buildGetMyWorkplaceController();
 
+function buildUpdateMyWorkplaceController(service = workplaceService) {
+    return async function updateMyWorkplace(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const workplace = await service.updateWorkplaceByManagerId(
+                req.body,
+                managerId,
+            );
+
+            return res.status(200).json({ workplace });
+        } catch (error) {
+            const statusCode = error.statusCode
+                || (error.name === 'ValidationError' ? 400 : 500);
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to update workplace'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const updateMyWorkplace = buildUpdateMyWorkplaceController();
+
+function buildRegenerateInviteCodeController(service = workplaceService) {
+    return async function regenerateInviteCode(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const workplace = await service.regenerateInviteCode(managerId);
+
+            return res.status(200).json({ workplace });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to regenerate invite code'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const regenerateInviteCode = buildRegenerateInviteCodeController();
+
 module.exports = {
     buildCreateWorkplaceController,
     createWorkplace,
     buildGetMyWorkplaceController,
     getMyWorkplace,
+    buildUpdateMyWorkplaceController,
+    updateMyWorkplace,
+    buildRegenerateInviteCodeController,
+    regenerateInviteCode,
 };

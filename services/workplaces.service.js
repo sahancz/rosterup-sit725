@@ -76,9 +76,72 @@ async function getWorkplaceByManagerId(
     return WorkplaceModel.findOne({ manager_id: managerId });
 }
 
+async function updateWorkplaceByManagerId(
+    input,
+    managerId,
+    dependencies = {},
+) {
+    const WorkplaceModel = dependencies.WorkplaceModel || Workplace;
+    const workplaceInput = normaliseWorkplaceInput(input);
+
+    validateWorkplaceInput(workplaceInput);
+
+    if (!managerId) {
+        const error = new Error('An authenticated manager is required');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const workplace = await WorkplaceModel.findOneAndUpdate(
+        { manager_id: managerId, active: true },
+        { $set: workplaceInput },
+        { new: true, runValidators: true },
+    );
+
+    if (!workplace) {
+        const error = new Error('Workplace not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return workplace;
+}
+
+async function regenerateInviteCode(
+    managerId,
+    dependencies = {},
+) {
+    const WorkplaceModel = dependencies.WorkplaceModel || Workplace;
+    const inviteCodeGenerator = dependencies.inviteCodeGenerator
+        || (() => generateUniqueInviteCode(WorkplaceModel));
+
+    if (!managerId) {
+        const error = new Error('An authenticated manager is required');
+        error.statusCode = 401;
+        throw error;
+    }
+
+    const inviteCode = await inviteCodeGenerator();
+    const workplace = await WorkplaceModel.findOneAndUpdate(
+        { manager_id: managerId, active: true },
+        { $set: { invite_code: inviteCode } },
+        { new: true, runValidators: true },
+    );
+
+    if (!workplace) {
+        const error = new Error('Workplace not found');
+        error.statusCode = 404;
+        throw error;
+    }
+
+    return workplace;
+}
+
 module.exports = {
     createWorkplace,
     normaliseWorkplaceInput,
     validateWorkplaceInput,
     getWorkplaceByManagerId,
+    updateWorkplaceByManagerId,
+    regenerateInviteCode,
 };

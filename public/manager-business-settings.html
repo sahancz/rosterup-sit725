@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RosterUp — Business Settings</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="/style/main.css">
+  <link rel="stylesheet" href="/style/manager-dashboard.css">
+  <link rel="stylesheet" href="/style/manager-business-settings.css">
+</head>
+<body>
+  <div class="mgr-shell">
+    <aside class="mgr-sidebar">
+      <div class="mgr-sidebar-header">
+        <div class="auth-logo">
+          <div class="auth-logo-box" style="width:32px;height:32px;font-size:0.875rem;">R</div>
+          <span class="auth-logo-text" style="font-size:1rem;">RosterUp</span>
+        </div>
+        <div class="mgr-sidebar-role">
+          <span class="material-icons">security</span>
+          <span>Manager</span>
+        </div>
+      </div>
+
+      <nav class="mgr-nav">
+        <a href="manager-dashboard.html" class="mgr-nav-item">
+          <span class="material-icons">dashboard</span> Dashboard
+        </a>
+        <a href="manager-approvals.html" class="mgr-nav-item">
+          <span class="material-icons">group</span> Employees
+        </a>
+        <a href="manager-shift-approvals.html" class="mgr-nav-item">
+          <span class="material-icons">assignment</span> Shift Approvals
+        </a>
+        <a href="manager-shifts.html" class="mgr-nav-item">
+          <span class="material-icons">calendar_today</span> All Shifts
+        </a>
+        <a href="manager-shift-history.html" class="mgr-nav-item">
+          <span class="material-icons">history</span> Shift History
+        </a>
+        <a href="manager-business-settings.html" class="mgr-nav-item mgr-nav-item--active">
+          <span class="material-icons">settings</span> Business Settings
+        </a>
+        <a href="manager-chat.html" class="mgr-nav-item">
+          <span class="material-icons">forum</span> Team Chat
+        </a>
+        <a href="manager-profile.html" class="mgr-nav-item">
+          <span class="material-icons">person</span> Profile
+        </a>
+      </nav>
+
+      <div class="mgr-sidebar-footer">
+        <div class="mgr-user-row">
+          <div class="mgr-avatar" id="userAvatar">--</div>
+          <div style="min-width:0;">
+            <p class="mgr-user-name" id="userName">Manager</p>
+            <p class="mgr-user-role">Manager</p>
+          </div>
+        </div>
+        <button class="mgr-logout-btn" id="logoutLink">
+          <span class="material-icons">logout</span> Logout
+        </button>
+      </div>
+    </aside>
+
+    <main class="mgr-main">
+      <div class="mgr-page-header">
+        <h1>Business Settings</h1>
+      </div>
+
+      <div class="mbs-wrap">
+        <form class="mbs-card" id="businessSettingsForm">
+          <div class="mbs-fields">
+            <div class="mbs-field">
+              <label for="workplaceName">Business name</label>
+              <input type="text" id="workplaceName" required>
+            </div>
+
+            <div class="mbs-field">
+              <label for="workplaceType">Business type</label>
+              <select id="workplaceType" required>
+                <option value="" disabled>Select a type</option>
+                <option value="Cafe">Cafe</option>
+                <option value="Restaurant">Restaurant</option>
+                <option value="Retail">Retail</option>
+                <option value="Bar">Bar</option>
+                <option value="Hotel">Hotel</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Warehouse">Warehouse</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="mbs-field">
+              <label for="workplaceAddress">Street address</label>
+              <input type="text" id="workplaceAddress" required>
+            </div>
+
+            <div class="mbs-row">
+              <div class="mbs-field">
+                <label for="workplaceTown">Town / Suburb</label>
+                <input type="text" id="workplaceTown" required>
+              </div>
+              <div class="mbs-field">
+                <label for="workplacePostcode">Postcode</label>
+                <input type="text" id="workplacePostcode" required>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary" id="saveButton">Save Changes</button>
+          <div id="messageBox" class="mbs-message" aria-live="polite"></div>
+        </form>
+
+        <section class="mbs-card">
+          <p class="mbs-invite-label">Your workplace invite code</p>
+          <p class="mbs-invite-code" id="inviteCodeValue">—</p>
+          <div class="mbs-actions">
+            <button type="button" class="btn-outline" id="copyButton">
+              <span class="material-icons">content_copy</span> Copy Invite Code
+            </button>
+            <button type="button" class="btn-primary" id="regenerateButton">Regenerate Invite Code</button>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/manager-business-settings.js"></script>
+</body>
+</html>
