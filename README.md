@@ -208,7 +208,7 @@ those marked 🔒 Manager also require the signed-in user's role to be
 
 **GET /** 🔒 — shifts belonging to the caller's own workplace, populated with who posted them. The workplace is always resolved from the authenticated user server-side — a `workplace` query parameter is **not** read from the request, so it can't be used to view another workplace's shifts. Returns `[]` if the caller has no active workplace.
 
-Query parameters: `status` (defaults to `open`), `claimed_by` — optional.
+Query parameters: `status` (defaults to `open`), `claimed_by`, `posted_by` — optional.
 ```json
 // Response (200)
 [{ "_id": "...", "posted_by": { "_id": "...", "first_name": "Sarah", "last_name": "Jones" },
@@ -236,7 +236,9 @@ Query parameters: `status` (defaults to `open`), `claimed_by` — optional.
 ```
 Approve sets `status: "covered"`; reject reopens it (`status: "open"`, `claimed_by: null`). Returns `{ "shift": {...} }`.
 
-**Not yet implemented**: `GET /:id`, `PUT /:id`, and `POST /:id/withdraw` — this last one is the actual "withdraw a shift you posted" feature (FR-23); it isn't built yet, so don't confuse it with `PUT /withdraw` above, which withdraws a claim instead.
+**POST /:id/withdraw** 🔒 — withdraws a shift the caller *posted* (FR-23). Only allowed while the shift is still `open` (unclaimed); it's marked `status: "cancelled"` rather than deleted so it stays in shift history. Returns `{ "shift": {...} }`, or `404` if it isn't an open shift you posted. Not to be confused with `PUT /withdraw` above, which withdraws a *claim* instead.
+
+**Not yet implemented**: `GET /:id`, `PUT /:id`.
 
 ### Manager (`/api/manager`)
 

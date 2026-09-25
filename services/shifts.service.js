@@ -85,6 +85,37 @@ async function withdrawShiftsService(shiftId, userId, dependencies = {}) {
     return shift;
 }
 
+// Employee withdraws a shift they posted themselves — FR-23. The other
+// direction from withdrawShiftsService above: that one undoes a claim on
+// someone else's shift, this one takes your own posted shift off the board.
+// Only allowed while the shift is still 'open' (no one has claimed it yet),
+// and it's marked 'cancelled' rather than deleted so it still shows up in
+// shift history. posted_by and status are both in the filter so the check
+// and the update happen in one atomic step, same as claimShift.
+async function withdrawPostedShiftService(shiftId, userId, dependencies = {}) {
+    if (!userId) {
+        throw createHttpError('An authenticated user is required', 401);
+    }
+
+    const ShiftModel = dependencies.ShiftModel || Shift;
+
+    const shift = await ShiftModel.findOneAndUpdate(
+        {
+            _id: shiftId,
+            posted_by: userId,
+            status: 'open',
+        },
+        { status: 'cancelled' },
+        { new: true }
+    );
+
+    if (!shift) {
+        throw createHttpError('Open shift not found, or it was not posted by you.', 404);
+    }
+
+    return shift;
+}
+
 async function getShiftsService(filter, userId, dependencies = {}) {
     if (!userId) {
         throw createHttpError('An authenticated user is required', 401);
@@ -227,6 +258,7 @@ module.exports = {
     listPendingClaims,
     postShiftsService,
     withdrawShiftsService,
+    withdrawPostedShiftService,
     claimShift,
     processShiftClaim,
 };
