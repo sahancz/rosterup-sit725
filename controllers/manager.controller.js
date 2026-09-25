@@ -29,7 +29,7 @@ function buildGetManagerShiftsController(service = shiftsService) {
     return async function getManagerShifts(req, res) {
         try {
             const managerId = req.user?.id || req.user?._id;
-            const shifts = await service.getShiftsService({}, managerId);
+            const shifts = await service.getShiftsService({}, managerId, {}, { withClaimHistory: true });
 
             return res.status(200).json({
                 success: true,

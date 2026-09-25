@@ -73,7 +73,11 @@ function renderManagerShifts() {
   let shifts = managerShifts;
 
   if (view === 'history') {
-    shifts = shifts.filter(shift => ['covered', 'cancelled'].includes(shift.status));
+    // A rejected claim sends the shift back to 'open', so without the
+    // rejectedClaims check it would drop out of history entirely.
+    shifts = shifts.filter(shift =>
+      ['covered', 'cancelled'].includes(shift.status) || rejectedClaims(shift).length > 0
+    );
   } else if (selectedStatus !== 'all') {
     shifts = shifts.filter(shift => shift.status === selectedStatus);
   }
@@ -110,8 +114,18 @@ function shiftCardHtml(shift) {
       </div>
       <p class="mwv-shift-time"><span class="material-icons">schedule</span>${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
       <p class="mwv-shift-person">Offered by <strong>${escapeHtml(postedBy)}</strong></p>
+      ${shift.status === 'covered' && personName(shift.claimed_by) ? `<p class="mwv-shift-person">Covered by <strong>${escapeHtml(personName(shift.claimed_by))}</strong></p>` : ''}
+      ${rejectedClaims(shift).map(entry => `<p class="mwv-shift-person mwv-shift-person--rejected">Claim rejected: <strong>${escapeHtml(personName(entry.employee) || 'Unknown')}</strong></p>`).join('')}
     </article>
   `;
+}
+
+function personName(person) {
+  return person && person.first_name ? `${person.first_name} ${person.last_name}` : '';
+}
+
+function rejectedClaims(shift) {
+  return (shift.claim_history || []).filter(entry => entry.outcome === 'rejected');
 }
 
 function capitalize(value) {

@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { getShiftsService, listPendingClaims, processShiftClaim, claimShift, postShiftsService, withdrawShiftsService, withdrawPostedShiftService } = require('../services/shifts.service');
+const { getShiftsService, getShiftHistoryService, listPendingClaims, processShiftClaim, claimShift, postShiftsService, withdrawShiftsService, withdrawPostedShiftService } = require('../services/shifts.service');
 
 function createShiftQuery(result, captured) {
     return {
@@ -238,7 +238,7 @@ test('claimShift 404s when the shift is not open', async () => {
     );
 });
 
-test('claimShift marks an open shift as pending and assigns the claimant', async () => {
+test('claimShift marks an open shift as pending and assigns the claimant, never on their own shift', async () => {
     const updatedShift = { _id: 'shift-1', status: 'pending', claimed_by: 'employee-1' };
     let capturedFilter;
     let capturedUpdate;
@@ -253,7 +253,7 @@ test('claimShift marks an open shift as pending and assigns the claimant', async
         },
     });
 
-    assert.deepEqual(capturedFilter, { _id: 'shift-1', status: 'open' });
+    assert.deepEqual(capturedFilter, { _id: 'shift-1', status: 'open', posted_by: { $ne: 'employee-1' } });
     assert.deepEqual(capturedUpdate, { claimed_by: 'employee-1', status: 'pending' });
     assert.deepEqual(shift, updatedShift);
 });
@@ -395,4 +395,138 @@ test('withdrawPostedShiftService 404s when the shift is not an open shift posted
         }),
         (error) => error.statusCode === 404,
     );
+});
+
+test('processShiftClaim records an approved decision in claim history', async () => {
+    const shift = buildFakeShift();
+
+    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', {
+        WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
+        ShiftModel: { findOne: async () => shift },
+    });
+
+    assert.equal(result.claim_history.length, 1);
+    assert.equal(result.claim_history[0].employee, 'employee-1');
+    assert.equal(result.claim_history[0].outcome, 'approved');
+});
+
+test('processShiftClaim records who was rejected before clearing the claim', async () => {
+    const shift = buildFakeShift({
+        claim_history: [{ employee: 'employee-2', outcome: 'rejected' }],
+    });
+
+    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', {
+        WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
+        ShiftModel: { findOne: async () => shift },
+    });
+
+    assert.equal(result.claimed_by, null);
+    assert.equal(result.claim_history.length, 2);
+    assert.equal(result.claim_history[1].employee, 'employee-1');
+    assert.equal(result.claim_history[1].outcome, 'rejected');
+});
+
+test('getShiftHistoryService requires an authenticated user', async () => {
+    await assert.rejects(
+        () => getShiftHistoryService(undefined),
+        (error) => error.statusCode === 401,
+    );
+});
+
+test('getShiftHistoryService returns no history when the user has no active workplace', async () => {
+    const history = await getShiftHistoryService('employee-1', {
+        UserModel: { findById: async () => ({ _id: 'employee-1' }) },
+        resolveUserWorkplaceId: async () => null,
+        ShiftModel: {
+            find: () => {
+                throw new Error('Shift lookup should not run');
+            },
+        },
+    });
+
+    assert.deepEqual(history, []);
+});
+
+test('getShiftHistoryService scopes to the workplace and labels each shift from the employee point of view', async () => {
+    const captured = { populate: [] };
+    const shifts = [
+        { _id: 'covered-by-me', status: 'covered', posted_by: { _id: 'employee-2' }, claimed_by: { _id: 'employee-1' } },
+        { _id: 'covered-for-me', status: 'covered', posted_by: { _id: 'employee-1' }, claimed_by: { _id: 'employee-3' } },
+        { _id: 'withdrawn', status: 'cancelled', posted_by: { _id: 'employee-1' }, claimed_by: null },
+        {
+            _id: 'rejected',
+            status: 'open',
+            posted_by: { _id: 'employee-2' },
+            claimed_by: null,
+            claim_history: [{ employee: 'employee-1', outcome: 'rejected' }],
+        },
+    ];
+
+    const history = await getShiftHistoryService('employee-1', {
+        UserModel: { findById: async () => ({ _id: 'employee-1' }) },
+        resolveUserWorkplaceId: async () => 'workplace-1',
+        ShiftModel: {
+            find: (filter) => {
+                captured.filter = filter;
+                return createShiftQuery(shifts, captured);
+            },
+        },
+    });
+
+    assert.deepEqual(captured.filter, {
+        workplace: 'workplace-1',
+        $or: [
+            { claimed_by: 'employee-1', status: 'covered' },
+            { posted_by: 'employee-1', status: { $in: ['covered', 'cancelled'] } },
+            { claim_history: { $elemMatch: { employee: 'employee-1', outcome: 'rejected' } } },
+        ],
+    });
+    assert.deepEqual(
+        history.map((entry) => [entry._id, entry.outcome]),
+        [
+            ['covered-by-me', 'covered'],
+            ['covered-for-me', 'covered_for_you'],
+            ['withdrawn', 'withdrawn'],
+            ['rejected', 'claim_rejected'],
+        ],
+    );
+});
+
+test('getShiftsService only populates claim history when asked to (manager view)', async () => {
+    const dependencies = {
+        UserModel: { findById: async () => ({ _id: 'manager-1' }) },
+        resolveUserWorkplaceId: async () => 'workplace-1',
+    };
+    const withoutHistory = { populate: [] };
+    const withHistory = { populate: [] };
+
+    await getShiftsService({}, 'employee-1', {
+        ...dependencies,
+        ShiftModel: { find: () => createShiftQuery([], withoutHistory) },
+    });
+    await getShiftsService({}, 'manager-1', {
+        ...dependencies,
+        ShiftModel: { find: () => createShiftQuery([], withHistory) },
+    }, { withClaimHistory: true });
+
+    assert.deepEqual(withoutHistory.populate.map((p) => p.path), ['posted_by']);
+    assert.deepEqual(withHistory.populate.map((p) => p.path), ['posted_by', 'claimed_by', 'claim_history.employee']);
+});
+
+test('getShiftHistoryService labels a rejected claim as not approved even on an open shift', async () => {
+    const shifts = [{
+        _id: 'reopened',
+        status: 'open',
+        posted_by: { _id: 'employee-2' },
+        claimed_by: null,
+        claim_history: [{ employee: 'employee-1', outcome: 'rejected' }],
+    }];
+
+    const history = await getShiftHistoryService('employee-1', {
+        UserModel: { findById: async () => ({ _id: 'employee-1' }) },
+        resolveUserWorkplaceId: async () => 'workplace-1',
+        ShiftModel: { find: () => createShiftQuery(shifts, { populate: [] }) },
+    });
+
+    assert.equal(history[0].outcome, 'claim_rejected');
 });

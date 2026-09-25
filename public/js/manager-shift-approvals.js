@@ -119,10 +119,10 @@ function claimCardHtml(claim) {
       ` : ''}
 
       <div class="msa-actions">
-        <button class="msa-reject" data-shift-id="${claim._id}" data-action="reject">
+        <button class="msa-reject" data-shift-id="${claim._id}" data-action="reject" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">close</span> Reject
         </button>
-        <button class="msa-approve" data-shift-id="${claim._id}" data-action="approve">
+        <button class="msa-approve" data-shift-id="${claim._id}" data-action="approve" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">check</span> Approve Cover
         </button>
       </div>
@@ -170,8 +170,18 @@ async function handleActionClick(e) {
 
   const shiftId = btn.dataset.shiftId;
   const action = btn.dataset.action;
+  const claimant = btn.dataset.claimant;
   const card = btn.closest('.msa-card');
   const token = localStorage.getItem('rosterup_token');
+
+  // Rejecting can't be undone from here, so check first. Approving is the
+  // expected path and doesn't need the extra click.
+  if (action === 'reject'
+    && !confirm(`Reject ${claimant}'s claim? The shift will go back to Open Shifts for someone else to claim.`)) {
+    return;
+  }
+
+  hideActionMessage();
 
   const buttons = card.querySelectorAll('button[data-action]');
   buttons.forEach(b => { b.disabled = true; });
@@ -199,10 +209,15 @@ async function handleActionClick(e) {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       buttons.forEach(b => { b.disabled = false; });
-      btn.title = data.error || 'Could not process this claim.';
+      showActionMessage(data.error || 'Could not process this claim.', 'error');
       loadPendingClaims();
       return;
     }
+
+    showActionMessage(action === 'approve'
+      ? `Approved — ${claimant} is now covering this shift.`
+      : `Rejected ${claimant}'s claim — the shift is back in Open Shifts. You can still see it in Shift History.`,
+    'success');
 
     // Either way the card no longer belongs in the pending list — approved
     // shifts are covered, rejected ones go back to Open Shifts — so just
@@ -211,6 +226,16 @@ async function handleActionClick(e) {
   } catch (err) {
     console.error(`Failed to ${action} shift claim:`, err);
     buttons.forEach(b => { b.disabled = false; });
-    btn.title = 'Connection error — please try again.';
+    showActionMessage('Connection error — please try again.', 'error');
   }
+}
+
+function showActionMessage(text, type) {
+  const box = document.getElementById('actionMessage');
+  box.textContent = text;
+  box.className = `alert-box alert-${type}`;
+}
+
+function hideActionMessage() {
+  document.getElementById('actionMessage').className = 'alert-box hidden';
 }

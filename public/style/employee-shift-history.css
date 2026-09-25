@@ -1,0 +1,52 @@
+/* ==========================================================================
+   employee-shift-history.css — "Shift History" page (FR-16). Cards reuse
+   employee-open-shifts.css's .eos-card and the panel reuses
+   employee-my-shifts.css's .msh-panel; this file only adds the filter row
+   and one badge colour per history outcome.
+   ========================================================================== */
+
+.shh-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.shh-filter {
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.8125rem;
+  font-family: var(--font-family);
+  cursor: pointer;
+}
+.shh-filter:hover {
+  color: var(--color-foreground);
+}
+.shh-filter--active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-primary-foreground);
+}
+.shh-filter--active:hover {
+  color: var(--color-primary-foreground);
+}
+
+.eos-badge.shh-badge--covered {
+  background: #DDF2E7;
+  color: #166534;
+}
+.eos-badge.shh-badge--covered_for_you {
+  background: #DCEAF7;
+  color: #2B6CB0;
+}
+.eos-badge.shh-badge--withdrawn {
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+.eos-badge.shh-badge--claim_rejected {
+  background: #FDE2E2;
+  color: #B42318;
+}

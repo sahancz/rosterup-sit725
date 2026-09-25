@@ -123,7 +123,20 @@ const seedDatabase = async () => {
                 end_time: '15:00',
                 shift_role: 'Barista',
                 note: 'Morning shift.',
-                status: 'covered'
+                status: 'covered',
+                claim_history: [{ employee: emily._id, outcome: 'approved', decided_at: new Date('2026-09-11') }]
+            },
+            {
+                workplace: workplace._id,
+                posted_by: emily._id,
+                claimed_by: sarah._id,
+                shift_date: new Date('2026-09-08'),
+                start_time: '08:00',
+                end_time: '14:00',
+                shift_role: 'Barista',
+                note: 'Family event.',
+                status: 'covered',
+                claim_history: [{ employee: sarah._id, outcome: 'approved', decided_at: new Date('2026-09-06') }]
             },
             {
                 workplace: workplace._id,
@@ -143,7 +156,8 @@ const seedDatabase = async () => {
                 end_time: '18:00',
                 shift_role: 'Kitchen Hand',
                 note: 'Need someone to cover this shift.',
-                status: 'open'
+                status: 'open',
+                claim_history: [{ employee: sarah._id, outcome: 'rejected', decided_at: new Date('2026-09-15') }]
             }
         ]);
 

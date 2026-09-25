@@ -96,6 +96,35 @@ function buildGetOpenShiftsController(service = shiftsService) {
 
 const getOpenShiftsController = buildGetOpenShiftsController();
 
+// GET /shifts/history — the caller's own shift history (FR-16).
+function buildGetShiftHistoryController(service = shiftsService) {
+    return async function getShiftHistory(req, res) {
+        try {
+            const userId = req.user?.id || req.user?._id;
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'An authenticated user is required',
+                });
+            }
+
+            const history = await service.getShiftHistoryService(userId);
+
+            return res.status(200).json({ history });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to load shift history'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const getShiftHistory = buildGetShiftHistoryController();
+
 function buildListPendingClaimsController(service = shiftsService) {
     return async function listPendingClaims(req, res) {
         try {
@@ -218,6 +247,8 @@ const withdrawPostedShift = buildWithdrawPostedShiftController();
 module.exports = {
     buildGetOpenShiftsController,
     getOpenShiftsController,
+    buildGetShiftHistoryController,
+    getShiftHistory,
     buildListPendingClaimsController,
     listPendingClaims,
     buildProcessShiftClaimController,

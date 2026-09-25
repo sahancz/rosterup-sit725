@@ -30,9 +30,9 @@
         <a href="employee-my-shifts.html" class="emp-nav-item">
           <span class="material-icons">calendar_today</span> My Shifts
         </a>
-        <span class="emp-nav-item emp-nav-item--disabled" title="Not built yet">
+        <a href="employee-shift-history.html" class="emp-nav-item">
           <span class="material-icons">history</span> Shift History
-        </span>
+        </a>
         <a href="employee-chat.html" class="emp-nav-item">
           <span class="material-icons">forum</span> Team Chat
         </a>
@@ -94,13 +94,13 @@
           <p class="emp-stat-value">—</p>
           <p class="emp-stat-label">Pending Requests</p>
         </a>
-        <div class="emp-stat-card" title="Shift history isn't built yet (see Trello)">
+        <a href="employee-shift-history.html?outcome=covered" class="emp-stat-card emp-stat-card--link">
           <div class="emp-stat-icon" style="background:#DDF2E7;">
             <span class="material-icons" style="color:#166534;">check_circle</span>
           </div>
-          <p class="emp-stat-value">—</p>
+          <p class="emp-stat-value" id="statShiftsCovered">—</p>
           <p class="emp-stat-label">Shifts Covered</p>
-        </div>
+        </a>
       </div>
 
       <div class="emp-panels">
