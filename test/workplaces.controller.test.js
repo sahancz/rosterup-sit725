@@ -6,6 +6,7 @@ const {
     buildGetMyWorkplaceController,
     buildUpdateMyWorkplaceController,
     buildRegenerateInviteCodeController,
+    buildSendInviteEmailController,
 } = require('../controllers/workplaces.controller');
 
 function createResponseRecorder() {
@@ -146,4 +147,93 @@ test('regenerate invite code controller returns the new code', async () => {
 
     assert.equal(response.statusCode, 200);
     assert.equal(response.body.workplace.invite_code, 'RU-NEW123');
+});
+
+function inviteRequest(overrides = {}) {
+    return {
+        user: { id: 'manager-1', role: 'manager' },
+        body: { email: 'new@example.com' },
+        protocol: 'http',
+        get: (header) => (header === 'host' ? 'localhost:3000' : undefined),
+        ...overrides,
+    };
+}
+
+test('send invite email controller sends the invite with a join link on this host', async () => {
+    const originalBaseUrl = process.env.APP_BASE_URL;
+    delete process.env.APP_BASE_URL;
+
+    try {
+        const controller = buildSendInviteEmailController({
+            async sendInviteEmail(managerId, email, joinUrl) {
+                assert.equal(managerId, 'manager-1');
+                assert.equal(email, 'new@example.com');
+                assert.equal(joinUrl, 'http://localhost:3000/employee-join.html');
+                return { email: 'new@example.com', previewUrl: 'https://ethereal.email/message/abc' };
+            },
+        });
+        const response = createResponseRecorder();
+
+        await controller(inviteRequest(), response);
+
+        assert.equal(response.statusCode, 200);
+        assert.deepEqual(response.body, {
+            message: 'Invite sent to new@example.com',
+            previewUrl: 'https://ethereal.email/message/abc',
+        });
+    } finally {
+        if (originalBaseUrl !== undefined) process.env.APP_BASE_URL = originalBaseUrl;
+    }
+});
+
+test('send invite email controller uses APP_BASE_URL for the join link when set', async () => {
+    const originalBaseUrl = process.env.APP_BASE_URL;
+    process.env.APP_BASE_URL = 'https://rosterup.example.com';
+
+    try {
+        const controller = buildSendInviteEmailController({
+            async sendInviteEmail(managerId, email, joinUrl) {
+                assert.equal(joinUrl, 'https://rosterup.example.com/employee-join.html');
+                return { email, previewUrl: null };
+            },
+        });
+        const response = createResponseRecorder();
+
+        await controller(inviteRequest(), response);
+
+        assert.equal(response.statusCode, 200);
+    } finally {
+        if (originalBaseUrl === undefined) delete process.env.APP_BASE_URL;
+        else process.env.APP_BASE_URL = originalBaseUrl;
+    }
+});
+
+test('send invite email controller surfaces a validation error with its own status code', async () => {
+    const controller = buildSendInviteEmailController({
+        async sendInviteEmail() {
+            const error = new Error('Please enter a valid email address.');
+            error.statusCode = 400;
+            throw error;
+        },
+    });
+    const response = createResponseRecorder();
+
+    await controller(inviteRequest({ body: { email: 'nope' } }), response);
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.body, { error: 'Please enter a valid email address.' });
+});
+
+test('send invite email controller does not expose unexpected errors', async () => {
+    const controller = buildSendInviteEmailController({
+        async sendInviteEmail() {
+            throw new Error('database details');
+        },
+    });
+    const response = createResponseRecorder();
+
+    await controller(inviteRequest(), response);
+
+    assert.equal(response.statusCode, 500);
+    assert.deepEqual(response.body, { error: 'Unable to send invite email' });
 });
