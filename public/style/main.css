@@ -129,6 +129,11 @@ nav {
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .btn-primary:hover { background: #7B68A6; }
+.btn-primary:disabled {
+  background: var(--color-muted);
+  color: #9CA3AF;
+  cursor: not-allowed;
+}
 .btn-outline {
   background: transparent;
   border: 1px solid var(--color-primary);
