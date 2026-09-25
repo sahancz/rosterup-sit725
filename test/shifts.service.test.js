@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { getShiftsService, listPendingClaims, processShiftClaim, claimShift, postShiftsService, withdrawShiftsService } = require('../services/shifts.service');
+const { getShiftsService, listPendingClaims, processShiftClaim, claimShift, postShiftsService, withdrawShiftsService, withdrawPostedShiftService } = require('../services/shifts.service');
 
 function createShiftQuery(result, captured) {
     return {
@@ -359,4 +359,40 @@ test('processShiftClaim scopes the shift lookup to the manager\'s own workplace'
         status: 'pending',
         claimed_by: { $ne: null },
     });
+});
+
+test('withdrawPostedShiftService requires an authenticated user', async () => {
+    await assert.rejects(
+        () => withdrawPostedShiftService('shift-1', undefined),
+        (error) => error.statusCode === 401,
+    );
+});
+
+test('withdrawPostedShiftService cancels an open shift posted by this user', async () => {
+    const updatedShift = { _id: 'shift-1', status: 'cancelled', posted_by: 'employee-1' };
+    let capturedFilter;
+    let capturedUpdate;
+
+    const shift = await withdrawPostedShiftService('shift-1', 'employee-1', {
+        ShiftModel: {
+            findOneAndUpdate: async (filter, update) => {
+                capturedFilter = filter;
+                capturedUpdate = update;
+                return updatedShift;
+            },
+        },
+    });
+
+    assert.deepEqual(capturedFilter, { _id: 'shift-1', posted_by: 'employee-1', status: 'open' });
+    assert.deepEqual(capturedUpdate, { status: 'cancelled' });
+    assert.deepEqual(shift, updatedShift);
+});
+
+test('withdrawPostedShiftService 404s when the shift is not an open shift posted by this user', async () => {
+    await assert.rejects(
+        () => withdrawPostedShiftService('shift-1', 'employee-1', {
+            ShiftModel: { findOneAndUpdate: async () => null },
+        }),
+        (error) => error.statusCode === 404,
+    );
 });

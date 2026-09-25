@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController } = require('../controllers/shifts.controller');
+const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController, withdrawPostedShift } = require('../controllers/shifts.controller');
 const { requireAuth, requireRole } = require('../middleware/auth.middleware');
 
 
@@ -41,6 +41,6 @@ router.post('/:id/claim', requireAuth, claimShift);
 router.put('/:id/claim', requireAuth, requireRole('manager'), processShiftClaim);
 
 // Original Employee Withdraws Shift
-router.post('/:id/withdraw', notImplemented);
+router.post('/:id/withdraw', requireAuth, withdrawPostedShift);
 
 module.exports = router;

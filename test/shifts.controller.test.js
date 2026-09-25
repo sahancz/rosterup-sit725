@@ -8,6 +8,7 @@ const {
     buildClaimShiftController,
     buildPostShiftsController,
     buildWithdrawShiftsController,
+    buildWithdrawPostedShiftController,
 } = require('../controllers/shifts.controller');
 
 function createResponse() {
@@ -435,4 +436,91 @@ test('withdrawShiftsController surfaces a service error with its own status code
 
     assert.equal(res.statusCode, 400);
     assert.deepEqual(res.body, { message: 'Something went wrong.' });
+});
+
+test('withdrawPostedShift cancels a shift for an authenticated employee', async () => {
+    const cancelledShift = { _id: 'shift-1', status: 'cancelled' };
+    const controller = buildWithdrawPostedShiftController({
+        withdrawPostedShiftService: async (shiftId, userId) => {
+            assert.equal(shiftId, 'shift-1');
+            assert.equal(userId, 'employee-1');
+            return cancelledShift;
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'employee-1', role: 'employee' },
+        params: { id: 'shift-1' },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { shift: cancelledShift });
+});
+
+test('withdrawPostedShift rejects a request without an authenticated user', async () => {
+    const controller = buildWithdrawPostedShiftController({
+        withdrawPostedShiftService: async () => {
+            throw new Error('Service should not run');
+        },
+    });
+    const res = createResponse();
+
+    await controller({ params: { id: 'shift-1' } }, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(res.body, { error: 'An authenticated user is required' });
+});
+
+test('withdrawPostedShift surfaces a not-found error from the service with its own status code', async () => {
+    const controller = buildWithdrawPostedShiftController({
+        withdrawPostedShiftService: async () => {
+            const error = new Error('Open shift not found, or it was not posted by you.');
+            error.statusCode = 404;
+            throw error;
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'employee-1', role: 'employee' },
+        params: { id: 'shift-1' },
+    }, res);
+
+    assert.equal(res.statusCode, 404);
+    assert.deepEqual(res.body, { error: 'Open shift not found, or it was not posted by you.' });
+});
+
+test('withdrawPostedShift does not expose unexpected errors', async () => {
+    const controller = buildWithdrawPostedShiftController({
+        withdrawPostedShiftService: async () => {
+            throw new Error('database details');
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'employee-1', role: 'employee' },
+        params: { id: 'shift-1' },
+    }, res);
+
+    assert.equal(res.statusCode, 500);
+    assert.deepEqual(res.body, { error: 'Unable to withdraw shift' });
+});
+
+test('getOpenShiftsController passes a posted_by filter through to the service', async () => {
+    const controller = buildGetOpenShiftsController({
+        getShiftsService: async (filter) => {
+            assert.deepEqual(filter, { status: 'open', posted_by: 'employee-1' });
+            return [];
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'employee-1', role: 'employee' },
+        query: { status: 'open', posted_by: 'employee-1' },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
 });

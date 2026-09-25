@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
   document.getElementById('postShiftForm').addEventListener('submit', handlePostShift);
   document.getElementById('claimedShiftsList').addEventListener('click', handleWithdrawClick);
+  document.getElementById('postedShiftsList').addEventListener('click', handleWithdrawPostedClick);
 
+  loadPostedShifts();
   loadClaimedShifts();
 });
 
@@ -65,6 +67,7 @@ async function handlePostShift(e) {
       messageBox.textContent = 'Shift posted! It now shows up in Open Shifts for your team to claim.';
       messageBox.className = 'alert-box alert-success';
       document.getElementById('postShiftForm').reset();
+      loadPostedShifts();
     } else {
       messageBox.textContent = data.message || 'Could not post this shift. Please check the details and try again.';
       messageBox.className = 'alert-box alert-error';
@@ -76,6 +79,133 @@ async function handlePostShift(e) {
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = 'Post Shift';
+  }
+}
+
+// Shifts this employee posted that are still open (nobody has claimed them
+// yet) — the only ones FR-23 lets them withdraw.
+async function loadPostedShifts() {
+  const listEl = document.getElementById('postedShiftsList');
+  const token = localStorage.getItem('rosterup_token');
+  const userJson = localStorage.getItem('rosterup_user');
+  const user = userJson ? JSON.parse(userJson) : null;
+
+  if (!user) {
+    listEl.innerHTML = '<div class="emp-empty-card"><p>Could not load your posted shifts.</p></div>';
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/shifts?status=open&posted_by=${encodeURIComponent(user.id)}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem('rosterup_token');
+      localStorage.removeItem('rosterup_user');
+      window.location.href = 'sign-in.html';
+      return;
+    }
+
+    const shifts = await response.json();
+
+    if (!response.ok || !Array.isArray(shifts)) {
+      listEl.innerHTML = '<div class="emp-empty-card"><p>Could not load your posted shifts.</p></div>';
+      return;
+    }
+
+    renderPostedShifts(shifts);
+  } catch (err) {
+    console.error('Failed to load posted shifts:', err);
+    listEl.innerHTML = '<div class="emp-empty-card"><p>Connection error. Please try again.</p></div>';
+  }
+}
+
+function renderPostedShifts(shifts) {
+  const listEl = document.getElementById('postedShiftsList');
+
+  if (shifts.length === 0) {
+    listEl.innerHTML = '<div class="emp-empty-card"><p>You don\'t have any open shifts posted for cover right now.</p></div>';
+    return;
+  }
+
+  listEl.innerHTML = shifts.map(postedShiftCardHtml).join('');
+}
+
+function postedShiftCardHtml(shift) {
+  const date = new Date(shift.shift_date);
+  const dayShort = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
+  const dateNum = date.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'UTC' });
+  const monthShort = date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
+
+  return `
+    <div class="eos-card">
+      <div class="eos-date">
+        <p class="eos-date-day">${dayShort}</p>
+        <p class="eos-date-num">${dateNum}</p>
+        <p class="eos-date-month">${monthShort}</p>
+      </div>
+      <div class="eos-divider"></div>
+      <div class="eos-body">
+        <div class="eos-body-top">
+          <div>
+            <p class="eos-role">${escapeHtml(shift.shift_role)}</p>
+            <p class="eos-time"><span class="material-icons">schedule</span> ${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
+            ${shift.note ? `<p class="eos-posted-by">${escapeHtml(shift.note)}</p>` : ''}
+          </div>
+          <span class="eos-badge">Open</span>
+        </div>
+        <div class="eos-footer">
+          <p>No one has claimed this shift yet</p>
+          <button class="msh-withdraw-btn" data-shift-id="${shift._id}">Withdraw Shift</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+async function handleWithdrawPostedClick(e) {
+  const btn = e.target.closest('.msh-withdraw-btn');
+  if (!btn || btn.disabled) return;
+
+  if (!confirm('Withdraw this shift? It will be removed from Open Shifts and marked as cancelled.')) return;
+
+  const shiftId = btn.dataset.shiftId;
+  const token = localStorage.getItem('rosterup_token');
+
+  btn.disabled = true;
+  btn.textContent = 'Withdrawing…';
+
+  try {
+    const response = await fetch(`/api/shifts/${encodeURIComponent(shiftId)}/withdraw`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem('rosterup_token');
+      localStorage.removeItem('rosterup_user');
+      window.location.href = 'sign-in.html';
+      return;
+    }
+
+    if (!response.ok) {
+      btn.disabled = false;
+      btn.textContent = 'Withdraw Shift';
+      const data = await response.json().catch(() => ({}));
+      btn.title = data.error || 'Could not withdraw this shift.';
+      // Most likely someone claimed it in the meantime — refresh so the
+      // list shows the current state.
+      loadPostedShifts();
+      return;
+    }
+
+    loadPostedShifts();
+  } catch (err) {
+    console.error('Failed to withdraw posted shift:', err);
+    btn.disabled = false;
+    btn.textContent = 'Withdraw Shift';
+    btn.title = 'Connection error — please try again.';
   }
 }
 

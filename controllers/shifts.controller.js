@@ -77,10 +77,11 @@ function buildGetOpenShiftsController(service = shiftsService) {
                 return res.status(401).json({ message: 'Authentication required.' });
             }
 
-            const { status, claimed_by } = req.query || {};
+            const { status, claimed_by, posted_by } = req.query || {};
             const filter = { status: status || 'open' };
 
             if (claimed_by) filter.claimed_by = claimed_by;
+            if (posted_by) filter.posted_by = posted_by;
 
             const shifts = await service.getShiftsService(filter, userId);
 
@@ -184,6 +185,36 @@ function buildClaimShiftController(service = shiftsService) {
 
 const claimShift = buildClaimShiftController();
 
+// POST /shifts/:id/withdraw — employee withdraws a shift they posted (FR-23).
+function buildWithdrawPostedShiftController(service = shiftsService) {
+    return async function withdrawPostedShift(req, res) {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { id } = req.params;
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'An authenticated user is required',
+                });
+            }
+
+            const shift = await service.withdrawPostedShiftService(id, userId);
+
+            return res.status(200).json({ shift });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to withdraw shift'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const withdrawPostedShift = buildWithdrawPostedShiftController();
+
 module.exports = {
     buildGetOpenShiftsController,
     getOpenShiftsController,
@@ -196,5 +227,7 @@ module.exports = {
     buildPostShiftsController,
     postShiftsController,
     buildWithdrawShiftsController,
-    withdrawShiftsController
+    withdrawShiftsController,
+    buildWithdrawPostedShiftController,
+    withdrawPostedShift
 };
