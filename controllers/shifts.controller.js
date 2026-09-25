@@ -165,9 +165,9 @@ function buildProcessShiftClaimController(service = shiftsService) {
         try {
             const managerId = req.user?.id || req.user?._id;
             const { id } = req.params;
-            const { action } = req.body || {};
+            const { action, reason } = req.body || {};
 
-            const shift = await service.processShiftClaim(id, managerId, action);
+            const shift = await service.processShiftClaim(id, managerId, action, reason);
 
             return res.status(200).json({ shift });
         } catch (error) {
@@ -227,7 +227,9 @@ function buildWithdrawPostedShiftController(service = shiftsService) {
                 });
             }
 
-            const shift = await service.withdrawPostedShiftService(id, userId);
+            const { reason } = req.body || {};
+
+            const shift = await service.withdrawPostedShiftService(id, userId, reason);
 
             return res.status(200).json({ shift });
         } catch (error) {

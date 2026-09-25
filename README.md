@@ -216,7 +216,7 @@ Query parameters: `status` (defaults to `open`), `claimed_by`, `posted_by` — o
    "end_time": "17:00", "shift_role": "Barista", "note": "Doctor's appointment", "status": "open" }]
 ```
 
-**GET /history** 🔒 — the caller's own shift history (FR-16), newest first, scoped to their workplace. Each shift carries an `outcome` from the caller's point of view: `covered` (they covered it for someone), `covered_for_you` (their posted shift was covered), `withdrawn` (they withdrew their posted shift) or `claim_rejected` (a manager rejected their claim).
+**GET /history** 🔒 — the caller's own shift history (FR-16), newest first, scoped to their workplace. Each shift's `claim_history` only includes the caller's own entries, and each shift carries an `outcome` from the caller's point of view: `covered` (they covered it for someone), `covered_for_you` (their posted shift was covered), `withdrawn` (they withdrew their posted shift) or `claim_rejected` (a manager rejected their claim).
 ```json
 // Response (200)
 { "history": [{ "_id": "...", "shift_role": "Barista", "status": "covered", "outcome": "covered",
@@ -240,11 +240,11 @@ Query parameters: `status` (defaults to `open`), `claimed_by`, `posted_by` — o
 **PUT /:id/claim** 🔒 Manager — approves or rejects a pending claim.
 ```json
 // Request
-{ "action": "approve" }  // or "reject"
+{ "action": "reject", "reason": "We already have enough staff that day." }  // or { "action": "approve" }
 ```
-Approve sets `status: "covered"`; reject reopens it (`status: "open"`, `claimed_by: null`). Either way the decision is appended to the shift's `claim_history` (`employee`, `outcome`, `decided_at`), so a rejected claim still shows up in the employee's shift history. Returns `{ "shift": {...} }`.
+Approve sets `status: "covered"`; reject reopens it (`status: "open"`, `claimed_by: null`). `reason` is required to reject (max 300 characters, otherwise `400`) — the employee sees it in their shift history. Either way the decision is appended to the shift's `claim_history` (`employee`, `outcome`, `decided_at`, `reason`), so a rejected claim still shows up in the employee's shift history. Returns `{ "shift": {...} }`.
 
-**POST /:id/withdraw** 🔒 — withdraws a shift the caller *posted* (FR-23). Only allowed while the shift is still `open` (unclaimed); it's marked `status: "cancelled"` rather than deleted so it stays in shift history. Returns `{ "shift": {...} }`, or `404` if it isn't an open shift you posted. Not to be confused with `PUT /withdraw` above, which withdraws a *claim* instead.
+**POST /:id/withdraw** 🔒 — withdraws a shift the caller *posted* (FR-23). Only allowed while the shift is still `open` (unclaimed); it's marked `status: "cancelled"` rather than deleted so it stays in shift history. Optional body `{ "reason": "..." }` (max 300 characters) is saved as `cancel_reason`. Returns `{ "shift": {...} }`, or `404` if it isn't an open shift you posted. Not to be confused with `PUT /withdraw` above, which withdraws a *claim* instead.
 
 **Not yet implemented**: `GET /:id`, `PUT /:id`.
 
