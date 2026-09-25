@@ -25,6 +25,11 @@ npm install
 cp .env.example .env
 ```
 
+Invite emails work without any extra setup: by default they go to a free
+[Ethereal](https://ethereal.email) test inbox, and the manager dashboard shows
+a "View email" link to open each one. To deliver them to real inboxes, fill in
+the `SMTP_*` settings in `.env` (see `.env.example`).
+
 3. Start MongoDB and add the demo data.
 
 ```bash
@@ -62,7 +67,9 @@ you also want to stop MongoDB.
 Sprint 1 is finished and RosterUp is now moving into Sprint 2. The main
 features are working, including registration, workplace setup, employee
 approvals, shift cover, manager approvals, chat and the manager workplace
-views.
+views. Sprint 2 has added withdrawing a posted shift, shift history for
+employees and managers (with dates and reasons for each decision), and
+emailing the invite code to new employees.
 
 `main` contains the completed Sprint 1 version. `sprint2-integration` is where
 the current Sprint 2 work comes together before it is reviewed and moved into
@@ -106,20 +113,24 @@ Shift status and history are updated
 
 - Register and sign in as a manager.
 - Create a workplace and receive an invite code.
+- Email the invite code to a new employee.
 - Approve or reject employee join requests.
-- Review pending shift claims.
-- Approve or reject shift-cover requests.
-- View employees, shifts, and shift history.
+- Review pending shift claims, including why the shift needs cover.
+- Approve or reject shift-cover requests (a reason is required to reject).
+- View employees, shifts, and shift history, including who covered each
+  shift, rejected claims and the reasons given.
 
 ### Employee
 
 - Register and sign in as an employee.
-- Join a workplace using its invite code.
+- Join a workplace using its invite code (pre-filled when opened from an
+  invite email).
 - View upcoming and open shifts.
 - Post a shift for cover.
-- Claim an open shift.
-- View claim outcomes and shift history.
-- Withdraw an unclaimed posted shift.
+- Claim an open shift (but not their own).
+- View claim outcomes and shift history, including why a claim wasn't
+  approved.
+- Withdraw an unclaimed posted shift, with an optional reason.
 
 ## Approved scope
 
@@ -302,6 +313,8 @@ Workplace chat runs over Socket.io (`sockets/chat.socket.js`), not REST — not 
 - Express
 - MongoDB 7
 - Mongoose
+- Socket.io (workplace chat)
+- Nodemailer (invite emails)
 - HTML, CSS, and client-side JavaScript
 
 ## Development workflow
