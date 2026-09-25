@@ -5,6 +5,7 @@ const {
     getMyWorkplace,
     updateMyWorkplace,
     regenerateInviteCode,
+    sendInviteEmail,
 } = require('../controllers/workplaces.controller');
 const { requireAuth, requireRole } = require('../middleware/auth.middleware');
 
@@ -28,6 +29,8 @@ router.post('/', requireAuth, requireRole('manager'), createWorkplace);
 router.get('/mine', requireAuth, requireRole('manager'), getMyWorkplace);
 router.put('/mine', requireAuth, requireRole('manager'), updateMyWorkplace);
 router.post('/mine/invite-code', requireAuth, requireRole('manager'), regenerateInviteCode);
+// Email the invite code to a new employee (FR-24).
+router.post('/mine/invite-email', requireAuth, requireRole('manager'), sendInviteEmail);
 
 // Get all workplaces
 router.get('/', notImplemented);

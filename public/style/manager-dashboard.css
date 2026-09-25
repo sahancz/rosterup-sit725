@@ -480,8 +480,61 @@
   font-size: 16px;
 }
 
+/* "Send Invite" form under the code (FR-24). The card wraps so the form
+   takes its own full-width row below the code and Copy button. */
+.mgr-invite-card { flex-wrap: wrap; }
+.mgr-invite-send {
+  flex-basis: 100%;
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.75rem;
+}
+.mgr-invite-send label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-muted-foreground);
+  margin-bottom: 0.375rem;
+}
+.mgr-invite-send-row {
+  display: flex;
+  gap: 0.5rem;
+}
+.mgr-invite-send-row input {
+  flex: 1;
+  min-width: 0;
+  border-radius: var(--radius);
+  border: 1px solid rgba(141, 122, 184, 0.25);
+  background: var(--color-input-background);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-family: var(--font-family);
+}
+.mgr-invite-send-row input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(141, 122, 184, 0.25);
+}
+.mgr-invite-send-btn {
+  width: auto;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+}
+.mgr-invite-send-btn .material-icons { font-size: 16px; }
+.mgr-invite-send .alert-box {
+  margin: 0.75rem 0 0;
+  text-align: left;
+}
+.mgr-invite-send .alert-box a {
+  color: inherit;
+  font-weight: 600;
+}
+
 @media (max-width: 480px) {
-  .mgr-invite-card { flex-wrap: wrap; }
+  .mgr-invite-send-row { flex-direction: column; }
 }
 
 @media (max-width: 900px) {

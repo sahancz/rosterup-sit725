@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
   document.getElementById('dashCopyInviteBtn').addEventListener('click', handleCopyInviteCode);
+  document.getElementById('inviteEmailForm').addEventListener('submit', handleSendInviteEmail);
 
   checkWorkplace();
   loadPendingEmployees();
@@ -101,6 +102,89 @@ async function handleCopyInviteCode() {
   const originalHtml = copyBtn.innerHTML;
   copyBtn.innerHTML = '<span class="material-icons">check</span> Copied!';
   setTimeout(() => { copyBtn.innerHTML = originalHtml; }, 1500);
+}
+
+// Same loose check as the server (one @, a dot in the domain, no spaces) —
+// catches typos before a round trip; the server validates again.
+const INVITE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function handleSendInviteEmail(e) {
+  e.preventDefault();
+
+  const input = document.getElementById('inviteEmail');
+  const button = document.getElementById('inviteEmailBtn');
+  const messageBox = document.getElementById('inviteEmailMessage');
+  const email = input.value.trim();
+  const token = localStorage.getItem('rosterup_token');
+
+  if (!email) {
+    showInviteMessage('Please enter the employee\'s email address.', 'error');
+    input.focus();
+    return;
+  }
+
+  if (!INVITE_EMAIL_PATTERN.test(email)) {
+    showInviteMessage('That doesn\'t look like a valid email address.', 'error');
+    input.focus();
+    return;
+  }
+
+  const originalHtml = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<span class="material-icons">hourglass_empty</span> Sending…';
+  messageBox.className = 'alert-box hidden';
+
+  try {
+    const response = await fetch('/api/workplaces/mine/invite-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ email })
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem('rosterup_token');
+      localStorage.removeItem('rosterup_user');
+      window.location.href = 'sign-in.html';
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      showInviteMessage(data.error || 'Could not send the invite. Please try again.', 'error');
+      return;
+    }
+
+    showInviteMessage(data.message || `Invite sent to ${email}`, 'success', data.previewUrl);
+    input.value = '';
+  } catch (err) {
+    console.error('Failed to send invite email:', err);
+    showInviteMessage('Connection error. Please try again.', 'error');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHtml;
+  }
+}
+
+// previewUrl is only set in test-inbox mode (no SMTP configured) — it
+// opens the email that was sent so it can be checked without a real inbox.
+function showInviteMessage(text, type, previewUrl) {
+  const box = document.getElementById('inviteEmailMessage');
+  box.textContent = text;
+
+  if (previewUrl) {
+    const link = document.createElement('a');
+    link.href = previewUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'View email (test inbox)';
+    box.append(' — ', link);
+  }
+
+  box.className = `alert-box alert-${type}`;
 }
 
 function timeOfDayGreeting() {

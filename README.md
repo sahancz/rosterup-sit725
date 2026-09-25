@@ -202,6 +202,17 @@ those marked 🔒 Manager also require the signed-in user's role to be
 
 **GET /mine** 🔒 Manager — the signed-in manager's own workplace, or `{ "workplace": null }` if they haven't created one yet.
 
+**POST /mine/invite-email** 🔒 Manager — emails the workplace invite code to a new employee (FR-24), with a link to `employee-join.html?code=...` so the code is pre-filled. Returns `400` for an invalid email, `404` if the manager has no workplace yet, `502` if the email couldn't be sent.
+```json
+// Request
+{ "email": "new.employee@example.com" }
+```
+```json
+// Response (200)
+{ "message": "Invite sent to new.employee@example.com", "previewUrl": "https://ethereal.email/message/..." }
+```
+Without `SMTP_*` settings in `.env`, emails go to a free [Ethereal](https://ethereal.email) test inbox instead of being delivered, and `previewUrl` links to the sent email. With SMTP configured (see `.env.example`), emails are delivered for real and `previewUrl` is `null`.
+
 **Not yet implemented** (return a placeholder `501`): `GET /`, `GET /:id`, `PUT /:id`, `POST /join`, `POST /:id/invite-code`.
 
 ### Shifts (`/api/shifts`)

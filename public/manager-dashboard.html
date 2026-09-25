@@ -91,6 +91,17 @@
         <button type="button" id="dashCopyInviteBtn" class="btn-outline mgr-invite-copy-btn">
           <span class="material-icons">content_copy</span> Copy
         </button>
+
+        <form id="inviteEmailForm" class="mgr-invite-send" novalidate>
+          <label for="inviteEmail">Send the code to a new employee</label>
+          <div class="mgr-invite-send-row">
+            <input type="email" id="inviteEmail" placeholder="new.employee@example.com" maxlength="254" autocomplete="off">
+            <button type="submit" id="inviteEmailBtn" class="btn-primary mgr-invite-send-btn">
+              <span class="material-icons">send</span> Send Invite
+            </button>
+          </div>
+          <div id="inviteEmailMessage" class="alert-box hidden"></div>
+        </form>
       </div>
 
       <div class="mgr-stats-grid">
