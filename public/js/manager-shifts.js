@@ -14,6 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const filters = document.getElementById('shiftFilters');
   if (filters) filters.addEventListener('click', handleFilterClick);
 
+  // Lets the dashboard's "Open Shifts" card link straight to the open
+  // filter (manager-shifts.html?status=open).
+  const initialStatus = new URLSearchParams(window.location.search).get('status');
+  const initialButton = initialStatus && filters && filters.querySelector(`[data-status="${CSS.escape(initialStatus)}"]`);
+  if (initialButton) initialButton.click();
+
   loadManagerShifts();
 });
 
@@ -113,15 +119,39 @@ function shiftCardHtml(shift) {
         <span class="mwv-status mwv-status--${escapeHtml(shift.status)}">${escapeHtml(capitalize(shift.status))}</span>
       </div>
       <p class="mwv-shift-time"><span class="material-icons">schedule</span>${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
-      <p class="mwv-shift-person">Offered by <strong>${escapeHtml(postedBy)}</strong></p>
-      ${shift.status === 'covered' && personName(shift.claimed_by) ? `<p class="mwv-shift-person">Covered by <strong>${escapeHtml(personName(shift.claimed_by))}</strong></p>` : ''}
-      ${rejectedClaims(shift).map(entry => `<p class="mwv-shift-person mwv-shift-person--rejected">Claim rejected: <strong>${escapeHtml(personName(entry.employee) || 'Unknown')}</strong></p>`).join('')}
+      <p class="mwv-shift-person">Offered by <strong>${escapeHtml(postedBy)}</strong>${dateSuffix(shift.createdAt)}</p>
+      ${reasonLine(shift.note)}
+      ${shift.status === 'covered' && personName(shift.claimed_by) ? `<p class="mwv-shift-person">Covered by <strong>${escapeHtml(personName(shift.claimed_by))}</strong>${dateSuffix(approvedAt(shift))}</p>` : ''}
+      ${shift.status === 'cancelled' ? `<p class="mwv-shift-person">Withdrawn${dateSuffix(shift.updatedAt)}</p>${reasonLine(shift.cancel_reason)}` : ''}
+      ${rejectedClaims(shift).map(entry => `<p class="mwv-shift-person mwv-shift-person--rejected">Claim rejected: <strong>${escapeHtml(personName(entry.employee) || 'Unknown')}</strong>${dateSuffix(entry.decided_at)}</p>${reasonLine(entry.reason)}`).join('')}
     </article>
   `;
 }
 
 function personName(person) {
   return person && person.first_name ? `${person.first_name} ${person.last_name}` : '';
+}
+
+// When the manager approved the current claim. Shifts covered before
+// claim_history existed have no entry, so they just show no date.
+function approvedAt(shift) {
+  const approvals = (shift.claim_history || []).filter(entry => entry.outcome === 'approved');
+  return approvals.length ? approvals[approvals.length - 1].decided_at : null;
+}
+
+// The "why" under an event line — the poster's note, a withdrawal reason
+// or a rejection reason. Nothing if none was given.
+function reasonLine(reason) {
+  if (!reason) return '';
+  return `<p class="mwv-shift-reason">“${escapeHtml(reason)}”</p>`;
+}
+
+// " · 15 Sept" after a line, or nothing if there's no date to show.
+function dateSuffix(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` · ${escapeHtml(date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))}`;
 }
 
 function rejectedClaims(shift) {

@@ -9,6 +9,21 @@ function createHttpError(message, statusCode) {
     return error;
 };
 
+const MAX_REASON_LENGTH = 300;
+
+// Trims a free-text reason and returns '' when there isn't one. Checked
+// here (not just by the schema) because findOneAndUpdate doesn't run
+// maxlength validation by default.
+function normaliseReason(reason) {
+    const text = typeof reason === 'string' ? reason.trim() : '';
+
+    if (text.length > MAX_REASON_LENGTH) {
+        throw createHttpError(`Reason must be ${MAX_REASON_LENGTH} characters or fewer.`, 400);
+    }
+
+    return text;
+}
+
 // Employee (or manager) posts one of their own shifts for cover — FR-15.
 // workplace and posted_by are always resolved server-side from the
 // authenticated user rather than trusted from the request body — the old
@@ -91,13 +106,19 @@ async function withdrawShiftsService(shiftId, userId, dependencies = {}) {
 // Only allowed while the shift is still 'open' (no one has claimed it yet),
 // and it's marked 'cancelled' rather than deleted so it still shows up in
 // shift history. posted_by and status are both in the filter so the check
-// and the update happen in one atomic step, same as claimShift.
-async function withdrawPostedShiftService(shiftId, userId, dependencies = {}) {
+// and the update happen in one atomic step, same as claimShift. The reason
+// is optional and kept as cancel_reason for shift history.
+async function withdrawPostedShiftService(shiftId, userId, reason, dependencies = {}) {
     if (!userId) {
         throw createHttpError('An authenticated user is required', 401);
     }
 
+    const cancelReason = normaliseReason(reason);
+
     const ShiftModel = dependencies.ShiftModel || Shift;
+
+    const update = { status: 'cancelled' };
+    if (cancelReason) update.cancel_reason = cancelReason;
 
     const shift = await ShiftModel.findOneAndUpdate(
         {
@@ -105,7 +126,7 @@ async function withdrawPostedShiftService(shiftId, userId, dependencies = {}) {
             posted_by: userId,
             status: 'open',
         },
-        { status: 'cancelled' },
+        update,
         { new: true }
     );
 
@@ -142,7 +163,11 @@ async function getShiftsService(filter, userId, dependencies = {}, options = {})
     let query = ShiftModel.find(scopedFilter)
         .populate('posted_by', 'first_name last_name');
 
-    if (options.withClaimHistory) {
+    if (!options.withClaimHistory) {
+        // Past claim decisions (who was rejected and why) are for the
+        // manager, not every coworker browsing open shifts.
+        query = query.select('-claim_history');
+    } else {
         query = query
             .populate('claimed_by', 'first_name last_name')
             .populate('claim_history.employee', 'first_name last_name');
@@ -210,8 +235,13 @@ async function getShiftHistoryService(userId, dependencies = {}) {
         .sort({ shift_date: -1, start_time: -1 })
         .lean();
 
+    // Only this employee's own claim decisions go back to them — not who
+    // else was turned down for the same shift, or why.
     return shifts.map((shift) => ({
         ...shift,
+        claim_history: (shift.claim_history || []).filter(
+            (entry) => refId(entry.employee) === String(userId)
+        ),
         outcome: historyOutcomeFor(shift, userId),
     }));
 }
@@ -286,13 +316,20 @@ const VALID_CLAIM_ACTIONS = ['approve', 'reject'];
 // whether the shift doesn't exist, isn't pending, or belongs to a
 // different manager's workplace, so a manager can't learn anything about
 // another workplace's shifts just by guessing ids.
-async function processShiftClaim(shiftId, managerId, action, dependencies = {}) {
+async function processShiftClaim(shiftId, managerId, action, reason, dependencies = {}) {
     if (!managerId) {
         throw createHttpError('An authenticated manager is required', 401);
     }
 
     if (!VALID_CLAIM_ACTIONS.includes(action)) {
         throw createHttpError("Invalid action. Must be 'approve' or 'reject'.", 400);
+    }
+
+    // The employee sees this in their shift history, so a rejection always
+    // has to say why. Approving doesn't need one.
+    const decisionReason = normaliseReason(reason);
+    if (action === 'reject' && !decisionReason) {
+        throw createHttpError('Please give a reason for rejecting this claim.', 400);
     }
 
     const ShiftModel = dependencies.ShiftModel || Shift;
@@ -326,6 +363,7 @@ async function processShiftClaim(shiftId, managerId, action, dependencies = {}) 
             employee: shift.claimed_by,
             outcome: action === 'approve' ? 'approved' : 'rejected',
             decided_at: new Date(),
+            ...(decisionReason ? { reason: decisionReason } : {}),
         },
     ];
 

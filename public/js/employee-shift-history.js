@@ -22,13 +22,63 @@ document.addEventListener('DOMContentLoaded', () => {
   loadHistory();
 });
 
-// Badge text and footer line for each outcome returned by GET /api/shifts/history.
+// Badge text, footer line and the date that line refers to, for each
+// outcome returned by GET /api/shifts/history.
 const OUTCOME_LABELS = {
-  covered: { badge: 'Covered', detail: (shift) => `You covered this shift for <strong>${escapeHtml(personName(shift.posted_by, 'a coworker'))}</strong>` },
-  covered_for_you: { badge: 'Covered for you', detail: (shift) => `<strong>${escapeHtml(personName(shift.claimed_by, 'A coworker'))}</strong> covered your shift` },
-  withdrawn: { badge: 'Withdrawn', detail: () => 'You withdrew this shift before anyone claimed it' },
-  claim_rejected: { badge: 'Not approved', detail: (shift) => `Your claim on <strong>${escapeHtml(personName(shift.posted_by, 'a coworker'))}</strong>'s shift wasn't approved` }
+  covered: {
+    badge: 'Covered',
+    detail: (shift) => `You covered this shift for <strong>${escapeHtml(personName(shift.posted_by, 'a coworker'))}</strong>`,
+    date: (shift) => lastDecision(shift, 'approved', shift.claimed_by),
+    reason: (shift) => shift.note
+  },
+  covered_for_you: {
+    badge: 'Covered for you',
+    detail: (shift) => `<strong>${escapeHtml(personName(shift.claimed_by, 'A coworker'))}</strong> covered your shift`,
+    date: (shift) => lastDecision(shift, 'approved', shift.claimed_by),
+    reason: (shift) => shift.note
+  },
+  withdrawn: {
+    badge: 'Withdrawn',
+    detail: () => 'You withdrew this shift before anyone claimed it',
+    date: (shift) => shift.updatedAt,
+    reason: (shift) => shift.cancel_reason
+  },
+  claim_rejected: {
+    badge: 'Not approved',
+    detail: (shift) => `Your claim on <strong>${escapeHtml(personName(shift.posted_by, 'a coworker'))}</strong>'s shift wasn't approved`,
+    date: (shift) => lastDecisionEntry(shift, 'rejected', currentUserId())?.decided_at,
+    reason: (shift) => lastDecisionEntry(shift, 'rejected', currentUserId())?.reason
+  }
 };
+
+function currentUserId() {
+  const userJson = localStorage.getItem('rosterup_user');
+  const user = userJson ? JSON.parse(userJson) : null;
+  return user ? user.id : null;
+}
+
+// Latest claim decision with this outcome for this employee, or null for
+// shifts decided before claim_history existed.
+function lastDecisionEntry(shift, outcome, employee) {
+  const employeeId = employee && String(employee._id || employee);
+  const matches = (shift.claim_history || []).filter((entry) =>
+    entry.outcome === outcome && String(entry.employee) === employeeId
+  );
+  return matches.length ? matches[matches.length - 1] : null;
+}
+
+function lastDecision(shift, outcome, employee) {
+  const entry = lastDecisionEntry(shift, outcome, employee);
+  return entry ? entry.decided_at : null;
+}
+
+// " · 15 Sept" after a line, or nothing if there's no date to show.
+function dateSuffix(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` · ${escapeHtml(date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))}`;
+}
 
 let historyEntries = [];
 let selectedOutcome = 'all';
@@ -109,7 +159,8 @@ function historyCardHtml(shift) {
   const dayShort = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
   const dateNum = date.toLocaleDateString('en-US', { day: 'numeric', timeZone: 'UTC' });
   const monthShort = date.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }).toUpperCase();
-  const label = OUTCOME_LABELS[shift.outcome] || { badge: capitalize(shift.status), detail: () => '' };
+  const label = OUTCOME_LABELS[shift.outcome] || { badge: capitalize(shift.status), detail: () => '', date: () => null, reason: () => null };
+  const reason = label.reason(shift);
 
   return `
     <div class="eos-card">
@@ -128,7 +179,10 @@ function historyCardHtml(shift) {
           <span class="eos-badge shh-badge--${escapeHtml(shift.outcome)}">${escapeHtml(label.badge)}</span>
         </div>
         <div class="eos-footer">
-          <p>${label.detail(shift)}</p>
+          <div>
+            <p>${label.detail(shift)}${dateSuffix(label.date(shift))}</p>
+            ${reason ? `<p class="shh-reason">“${escapeHtml(reason)}”</p>` : ''}
+          </div>
         </div>
       </div>
     </div>

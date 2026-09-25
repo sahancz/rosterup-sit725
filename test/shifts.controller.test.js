@@ -569,3 +569,40 @@ test('getShiftHistory does not expose unexpected errors', async () => {
     assert.equal(res.statusCode, 500);
     assert.deepEqual(res.body, { error: 'Unable to load shift history' });
 });
+
+test('processShiftClaim passes the rejection reason through to the service', async () => {
+    const controller = buildProcessShiftClaimController({
+        processShiftClaim: async (shiftId, managerId, action, reason) => {
+            assert.equal(action, 'reject');
+            assert.equal(reason, 'Too many staff that day.');
+            return { _id: shiftId, status: 'open' };
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'manager-1', role: 'manager' },
+        params: { id: 'shift-1' },
+        body: { action: 'reject', reason: 'Too many staff that day.' },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+});
+
+test('withdrawPostedShift passes the optional reason through to the service', async () => {
+    const controller = buildWithdrawPostedShiftController({
+        withdrawPostedShiftService: async (shiftId, userId, reason) => {
+            assert.equal(reason, 'I can work after all.');
+            return { _id: shiftId, status: 'cancelled' };
+        },
+    });
+    const res = createResponse();
+
+    await controller({
+        user: { id: 'employee-1', role: 'employee' },
+        params: { id: 'shift-1' },
+        body: { reason: 'I can work after all.' },
+    }, res);
+
+    assert.equal(res.statusCode, 200);
+});

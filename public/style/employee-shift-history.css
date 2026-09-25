@@ -50,3 +50,12 @@
   background: #FDE2E2;
   color: #B42318;
 }
+
+/* The "why" under a history entry — the poster's note, a withdrawal
+   reason or the manager's rejection reason. */
+.shh-reason {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  font-style: italic;
+  color: var(--color-muted-foreground);
+}

@@ -16,8 +16,12 @@ const ShiftSchema = new mongoose.Schema({
         _id: false,
         employee: {type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true},
         outcome: {type: String, enum: ['approved', 'rejected'], required: true},
-        decided_at: {type: Date, default: Date.now}
-    }]
+        decided_at: {type: Date, default: Date.now},
+        // Why the manager rejected the claim — required for 'rejected'.
+        reason: {type: String, trim: true, maxlength: 300}
+    }],
+    // Why the poster withdrew their own shift — optional (FR-23).
+    cancel_reason: {type: String, trim: true, maxlength: 300}
 }, {
     timestamps: true,
     toJSON: {getters: true, virtuals: false},

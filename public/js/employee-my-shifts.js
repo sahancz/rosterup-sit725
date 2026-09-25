@@ -157,7 +157,16 @@ function postedShiftCardHtml(shift) {
         </div>
         <div class="eos-footer">
           <p>No one has claimed this shift yet</p>
-          <button class="msh-withdraw-btn" data-shift-id="${shift._id}">Withdraw Shift</button>
+          <button class="msh-withdraw-btn" data-step="open">Withdraw Shift</button>
+        </div>
+        <div class="msh-withdraw-form hidden">
+          <label for="withdrawReason-${shift._id}">Why are you withdrawing it? (optional)</label>
+          <textarea id="withdrawReason-${shift._id}" rows="2" maxlength="300" placeholder="e.g. My appointment moved, I can work this shift"></textarea>
+          <p class="msh-withdraw-note">It will be removed from Open Shifts and marked as withdrawn in your shift history.</p>
+          <div class="msh-withdraw-actions">
+            <button class="msh-cancel-btn" data-step="cancel">Cancel</button>
+            <button class="msh-withdraw-btn" data-step="confirm" data-shift-id="${shift._id}">Confirm Withdraw</button>
+          </div>
         </div>
       </div>
     </div>
@@ -165,13 +174,31 @@ function postedShiftCardHtml(shift) {
 }
 
 async function handleWithdrawPostedClick(e) {
-  const btn = e.target.closest('.msh-withdraw-btn');
+  const btn = e.target.closest('button[data-step]');
   if (!btn || btn.disabled) return;
 
-  if (!confirm('Withdraw this shift? It will be removed from Open Shifts and marked as cancelled.')) return;
+  const card = btn.closest('.eos-card');
+  const footer = card.querySelector('.eos-footer');
+  const form = card.querySelector('.msh-withdraw-form');
+
+  // First click opens the optional reason box; that second step also
+  // works as the "are you sure?".
+  if (btn.dataset.step === 'open') {
+    footer.classList.add('hidden');
+    form.classList.remove('hidden');
+    form.querySelector('textarea').focus();
+    return;
+  }
+
+  if (btn.dataset.step === 'cancel') {
+    form.classList.add('hidden');
+    footer.classList.remove('hidden');
+    return;
+  }
 
   const shiftId = btn.dataset.shiftId;
   const token = localStorage.getItem('rosterup_token');
+  const reason = form.querySelector('textarea').value.trim();
 
   btn.disabled = true;
   btn.textContent = 'Withdrawing…';
@@ -179,7 +206,11 @@ async function handleWithdrawPostedClick(e) {
   try {
     const response = await fetch(`/api/shifts/${encodeURIComponent(shiftId)}/withdraw`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {}
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify({ reason: reason || undefined })
     });
 
     if (response.status === 401) {
@@ -191,7 +222,7 @@ async function handleWithdrawPostedClick(e) {
 
     if (!response.ok) {
       btn.disabled = false;
-      btn.textContent = 'Withdraw Shift';
+      btn.textContent = 'Confirm Withdraw';
       const data = await response.json().catch(() => ({}));
       btn.title = data.error || 'Could not withdraw this shift.';
       // Most likely someone claimed it in the meantime — refresh so the
@@ -204,7 +235,7 @@ async function handleWithdrawPostedClick(e) {
   } catch (err) {
     console.error('Failed to withdraw posted shift:', err);
     btn.disabled = false;
-    btn.textContent = 'Withdraw Shift';
+    btn.textContent = 'Confirm Withdraw';
     btn.title = 'Connection error — please try again.';
   }
 }

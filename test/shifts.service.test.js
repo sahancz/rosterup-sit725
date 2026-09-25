@@ -13,6 +13,10 @@ function createShiftQuery(result, captured) {
             captured.sort = value;
             return this;
         },
+        select(value) {
+            captured.select = value;
+            return this;
+        },
         lean() {
             return Promise.resolve(result);
         },
@@ -178,7 +182,7 @@ test('processShiftClaim rejects an unrecognised action', async () => {
 
 test('processShiftClaim 404s when the manager has no workplace', async () => {
     await assert.rejects(
-        () => processShiftClaim('shift-1', 'manager-1', 'approve', {
+        () => processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
             WorkplaceModel: { findOne: async () => null },
             ShiftModel: { findOne: async () => { throw new Error('Shift lookup should not run'); } },
         }),
@@ -188,7 +192,7 @@ test('processShiftClaim 404s when the manager has no workplace', async () => {
 
 test('processShiftClaim 404s when the shift is not a pending claim in this workplace', async () => {
     await assert.rejects(
-        () => processShiftClaim('shift-1', 'manager-1', 'approve', {
+        () => processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
             WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
             ShiftModel: { findOne: async () => null },
         }),
@@ -199,7 +203,7 @@ test('processShiftClaim 404s when the shift is not a pending claim in this workp
 test('processShiftClaim approve marks the shift covered without clearing who claimed it', async () => {
     const shift = buildFakeShift();
 
-    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', {
+    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
         WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
         ShiftModel: { findOne: async () => shift },
     });
@@ -212,7 +216,7 @@ test('processShiftClaim approve marks the shift covered without clearing who cla
 test('processShiftClaim reject reopens the shift and clears the claim', async () => {
     const shift = buildFakeShift();
 
-    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', {
+    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', 'We already have enough staff that day.', {
         WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
         ShiftModel: { findOne: async () => shift },
     });
@@ -343,7 +347,7 @@ test('withdrawShiftsService returns null when the shift was not claimed by this 
 test('processShiftClaim scopes the shift lookup to the manager\'s own workplace', async () => {
     let capturedFilter;
 
-    await processShiftClaim('shift-1', 'manager-1', 'approve', {
+    await processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
         WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
         ShiftModel: {
             findOne: async (filter) => {
@@ -373,7 +377,7 @@ test('withdrawPostedShiftService cancels an open shift posted by this user', asy
     let capturedFilter;
     let capturedUpdate;
 
-    const shift = await withdrawPostedShiftService('shift-1', 'employee-1', {
+    const shift = await withdrawPostedShiftService('shift-1', 'employee-1', undefined, {
         ShiftModel: {
             findOneAndUpdate: async (filter, update) => {
                 capturedFilter = filter;
@@ -390,7 +394,7 @@ test('withdrawPostedShiftService cancels an open shift posted by this user', asy
 
 test('withdrawPostedShiftService 404s when the shift is not an open shift posted by this user', async () => {
     await assert.rejects(
-        () => withdrawPostedShiftService('shift-1', 'employee-1', {
+        () => withdrawPostedShiftService('shift-1', 'employee-1', undefined, {
             ShiftModel: { findOneAndUpdate: async () => null },
         }),
         (error) => error.statusCode === 404,
@@ -400,7 +404,7 @@ test('withdrawPostedShiftService 404s when the shift is not an open shift posted
 test('processShiftClaim records an approved decision in claim history', async () => {
     const shift = buildFakeShift();
 
-    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', {
+    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
         WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
         ShiftModel: { findOne: async () => shift },
     });
@@ -415,7 +419,7 @@ test('processShiftClaim records who was rejected before clearing the claim', asy
         claim_history: [{ employee: 'employee-2', outcome: 'rejected' }],
     });
 
-    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', {
+    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', 'We already have enough staff that day.', {
         WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
         ShiftModel: { findOne: async () => shift },
     });
@@ -529,4 +533,110 @@ test('getShiftHistoryService labels a rejected claim as not approved even on an 
     });
 
     assert.equal(history[0].outcome, 'claim_rejected');
+});
+
+test('processShiftClaim requires a reason to reject a claim', async () => {
+    await assert.rejects(
+        () => processShiftClaim('shift-1', 'manager-1', 'reject', '   ', {
+            WorkplaceModel: {
+                findOne: async () => {
+                    throw new Error('Workplace lookup should not run');
+                },
+            },
+        }),
+        (error) => error.statusCode === 400,
+    );
+});
+
+test('processShiftClaim rejects a reason longer than 300 characters', async () => {
+    await assert.rejects(
+        () => processShiftClaim('shift-1', 'manager-1', 'reject', 'x'.repeat(301)),
+        (error) => error.statusCode === 400,
+    );
+});
+
+test('processShiftClaim stores the trimmed rejection reason in claim history', async () => {
+    const shift = buildFakeShift();
+
+    const result = await processShiftClaim('shift-1', 'manager-1', 'reject', '  Too many staff that day.  ', {
+        WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
+        ShiftModel: { findOne: async () => shift },
+    });
+
+    assert.equal(result.claim_history[0].reason, 'Too many staff that day.');
+});
+
+test('processShiftClaim does not need a reason to approve', async () => {
+    const shift = buildFakeShift();
+
+    const result = await processShiftClaim('shift-1', 'manager-1', 'approve', undefined, {
+        WorkplaceModel: { findOne: async () => ({ _id: 'workplace-1' }) },
+        ShiftModel: { findOne: async () => shift },
+    });
+
+    assert.equal(result.status, 'covered');
+    assert.equal(result.claim_history[0].reason, undefined);
+});
+
+test('withdrawPostedShiftService saves an optional withdrawal reason', async () => {
+    let capturedUpdate;
+
+    await withdrawPostedShiftService('shift-1', 'employee-1', ' I can work after all. ', {
+        ShiftModel: {
+            findOneAndUpdate: async (filter, update) => {
+                capturedUpdate = update;
+                return { _id: 'shift-1', ...update };
+            },
+        },
+    });
+
+    assert.deepEqual(capturedUpdate, { status: 'cancelled', cancel_reason: 'I can work after all.' });
+});
+
+test('withdrawPostedShiftService rejects a withdrawal reason longer than 300 characters', async () => {
+    await assert.rejects(
+        () => withdrawPostedShiftService('shift-1', 'employee-1', 'x'.repeat(301), {
+            ShiftModel: {
+                findOneAndUpdate: async () => {
+                    throw new Error('Update should not run');
+                },
+            },
+        }),
+        (error) => error.statusCode === 400,
+    );
+});
+
+test('getShiftsService hides claim history from employees', async () => {
+    const captured = { populate: [] };
+
+    await getShiftsService({ status: 'open' }, 'employee-1', {
+        UserModel: { findById: async () => ({ _id: 'employee-1' }) },
+        resolveUserWorkplaceId: async () => 'workplace-1',
+        ShiftModel: { find: () => createShiftQuery([], captured) },
+    });
+
+    assert.equal(captured.select, '-claim_history');
+});
+
+test('getShiftHistoryService only returns the employee\'s own claim decisions', async () => {
+    const shifts = [{
+        _id: 'shift-1',
+        status: 'open',
+        posted_by: { _id: 'employee-2' },
+        claimed_by: null,
+        claim_history: [
+            { employee: 'employee-3', outcome: 'rejected', reason: 'Not trained for this role.' },
+            { employee: 'employee-1', outcome: 'rejected', reason: 'Too many staff that day.' },
+        ],
+    }];
+
+    const history = await getShiftHistoryService('employee-1', {
+        UserModel: { findById: async () => ({ _id: 'employee-1' }) },
+        resolveUserWorkplaceId: async () => 'workplace-1',
+        ShiftModel: { find: () => createShiftQuery(shifts, { populate: [] }) },
+    });
+
+    assert.deepEqual(history[0].claim_history, [
+        { employee: 'employee-1', outcome: 'rejected', reason: 'Too many staff that day.' },
+    ]);
 });

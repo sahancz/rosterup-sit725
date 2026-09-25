@@ -82,6 +82,14 @@ function isOwnShift(shift) {
   return Boolean(user && postedById && String(postedById) === String(user.id));
 }
 
+// " · 15 Sept" — when the shift was posted, or nothing if unknown.
+function postedOn(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` · ${escapeHtml(date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))}`;
+}
+
 function shiftCardHtml(shift) {
   const date = new Date(shift.shift_date);
   const dayShort = date.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' }).toUpperCase();
@@ -105,7 +113,7 @@ function shiftCardHtml(shift) {
           <div>
             <p class="eos-role">${escapeHtml(shift.shift_role)}</p>
             <p class="eos-time"><span class="material-icons">schedule</span> ${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
-            <p class="eos-posted-by">Offered by <strong>${escapeHtml(postedByName)}</strong></p>
+            <p class="eos-posted-by">Offered by <strong>${escapeHtml(postedByName)}</strong>${postedOn(shift.createdAt)}</p>
           </div>
           <span class="eos-badge">Open</span>
         </div>

@@ -118,6 +118,8 @@ function claimCardHtml(claim) {
       </div>
       ` : ''}
 
+      ${claim.note ? `<p class="msa-note">Reason for cover: “${escapeHtml(claim.note)}”</p>` : ''}
+
       <div class="msa-actions">
         <button class="msa-reject" data-shift-id="${claim._id}" data-action="reject" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">close</span> Reject
@@ -125,6 +127,18 @@ function claimCardHtml(claim) {
         <button class="msa-approve" data-shift-id="${claim._id}" data-action="approve" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">check</span> Approve Cover
         </button>
+      </div>
+
+      <div class="msa-reject-form hidden">
+        <label for="rejectReason-${claim._id}">Reason for rejecting (shown to ${escapeHtml(claimedByName || 'the employee')})</label>
+        <textarea id="rejectReason-${claim._id}" rows="2" maxlength="300" placeholder="e.g. We already have enough staff on that shift"></textarea>
+        <p class="msa-reject-error hidden">Please give a reason.</p>
+        <div class="msa-actions">
+          <button class="msa-cancel" data-action="cancel-reject">Cancel</button>
+          <button class="msa-reject" data-shift-id="${claim._id}" data-action="confirm-reject" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
+            <span class="material-icons">close</span> Confirm Reject
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -168,16 +182,32 @@ async function handleActionClick(e) {
   const btn = e.target.closest('button[data-action]');
   if (!btn || btn.disabled) return;
 
-  const shiftId = btn.dataset.shiftId;
-  const action = btn.dataset.action;
-  const claimant = btn.dataset.claimant;
   const card = btn.closest('.msa-card');
-  const token = localStorage.getItem('rosterup_token');
+  const rejectForm = card.querySelector('.msa-reject-form');
 
-  // Rejecting can't be undone from here, so check first. Approving is the
-  // expected path and doesn't need the extra click.
-  if (action === 'reject'
-    && !confirm(`Reject ${claimant}'s claim? The shift will go back to Open Shifts for someone else to claim.`)) {
+  // Reject opens a reason box first (the employee sees the reason in their
+  // shift history) — that second step doubles as the "are you sure?".
+  if (btn.dataset.action === 'reject') {
+    rejectForm.classList.remove('hidden');
+    card.querySelector('.msa-actions').classList.add('hidden');
+    rejectForm.querySelector('textarea').focus();
+    return;
+  }
+
+  if (btn.dataset.action === 'cancel-reject') {
+    rejectForm.classList.add('hidden');
+    card.querySelector('.msa-actions').classList.remove('hidden');
+    return;
+  }
+
+  const shiftId = btn.dataset.shiftId;
+  const action = btn.dataset.action === 'confirm-reject' ? 'reject' : 'approve';
+  const claimant = btn.dataset.claimant;
+  const token = localStorage.getItem('rosterup_token');
+  const reason = action === 'reject' ? rejectForm.querySelector('textarea').value.trim() : undefined;
+
+  if (action === 'reject' && !reason) {
+    rejectForm.querySelector('.msa-reject-error').classList.remove('hidden');
     return;
   }
 
@@ -196,7 +226,7 @@ async function handleActionClick(e) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ action })
+      body: JSON.stringify({ action, reason })
     });
 
     if (response.status === 401) {
