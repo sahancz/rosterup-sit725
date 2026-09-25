@@ -96,6 +96,10 @@
   font-size: 0.75rem;
 }
 
+.mwv-shift-person--rejected {
+  color: var(--color-destructive);
+}
+
 .mwv-shift-time {
   display: flex;
   align-items: center;

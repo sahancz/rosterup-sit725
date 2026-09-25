@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RosterUp — My Shifts</title>
+  <title>RosterUp — Shift History</title>
 
   <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
   <link rel="stylesheet" href="/style/main.css">
@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="/style/employee-dashboard.css">
   <link rel="stylesheet" href="/style/employee-open-shifts.css">
   <link rel="stylesheet" href="/style/employee-my-shifts.css">
+  <link rel="stylesheet" href="/style/employee-shift-history.css">
 </head>
 <body>
 
@@ -30,10 +31,10 @@
         <a href="employee-open-shifts.html" class="emp-nav-item">
           <span class="material-icons">list</span> Open Shifts
         </a>
-        <a href="employee-my-shifts.html" class="emp-nav-item emp-nav-item--active">
+        <a href="employee-my-shifts.html" class="emp-nav-item">
           <span class="material-icons">calendar_today</span> My Shifts
         </a>
-        <a href="employee-shift-history.html" class="emp-nav-item">
+        <a href="employee-shift-history.html" class="emp-nav-item emp-nav-item--active">
           <span class="material-icons">history</span> Shift History
         </a>
         <a href="employee-chat.html" class="emp-nav-item">
@@ -60,63 +61,20 @@
 
     <main class="emp-main">
       <div class="emp-page-header">
-        <h1>My Shifts</h1>
-        <p>Post one of your shifts for cover, withdraw a shift you posted, or withdraw a shift you've claimed.</p>
+        <h1>Shift History</h1>
+        <p>Shifts you covered, your own shifts that were covered or withdrawn, and claims that weren't approved.</p>
       </div>
 
       <div class="msh-panel">
-        <div class="emp-panel-header">
-          <h2>Post a Shift for Cover</h2>
+        <div class="shh-filters" id="historyFilters">
+          <button type="button" class="shh-filter shh-filter--active" data-outcome="all">All</button>
+          <button type="button" class="shh-filter" data-outcome="covered">Covered by me</button>
+          <button type="button" class="shh-filter" data-outcome="covered_for_you">Covered for me</button>
+          <button type="button" class="shh-filter" data-outcome="withdrawn">Withdrawn</button>
+          <button type="button" class="shh-filter" data-outcome="claim_rejected">Not approved</button>
         </div>
 
-        <form class="auth-fields msh-form" id="postShiftForm">
-          <div class="msh-row">
-            <div class="field">
-              <label for="shiftDate">Date</label>
-              <input type="date" id="shiftDate" required>
-            </div>
-            <div class="field">
-              <label for="shiftStart">Start time</label>
-              <input type="time" id="shiftStart" required>
-            </div>
-            <div class="field">
-              <label for="shiftEnd">End time</label>
-              <input type="time" id="shiftEnd" required>
-            </div>
-          </div>
-
-          <div class="field">
-            <label for="shiftRole">Role</label>
-            <input type="text" id="shiftRole" placeholder="Barista" maxlength="100" required>
-          </div>
-
-          <div class="field">
-            <label for="shiftNote">Note (optional)</label>
-            <textarea id="shiftNote" rows="2" maxlength="500" placeholder="Anything a colleague picking this up should know"></textarea>
-          </div>
-
-          <button type="submit" id="postShiftBtn" class="btn-primary msh-submit-btn">Post Shift</button>
-        </form>
-
-        <div id="postShiftMessage" class="alert-box hidden"></div>
-      </div>
-
-      <div class="msh-panel">
-        <div class="emp-panel-header">
-          <h2>My Posted Shifts</h2>
-        </div>
-
-        <div id="postedShiftsList" class="eos-list">
-          <div class="emp-empty-card"><p>Loading…</p></div>
-        </div>
-      </div>
-
-      <div class="msh-panel">
-        <div class="emp-panel-header">
-          <h2>My Claimed Shifts</h2>
-        </div>
-
-        <div id="claimedShiftsList" class="eos-list">
+        <div id="historyList" class="eos-list">
           <div class="emp-empty-card"><p>Loading…</p></div>
         </div>
       </div>
@@ -124,6 +82,6 @@
   </div>
 
   <script src="js/emp-utils.js"></script>
-  <script src="js/employee-my-shifts.js"></script>
+  <script src="js/employee-shift-history.js"></script>
 </body>
 </html>

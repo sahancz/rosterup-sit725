@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController, withdrawPostedShift } = require('../controllers/shifts.controller');
+const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController, withdrawPostedShift, getShiftHistory } = require('../controllers/shifts.controller');
 const { requireAuth, requireRole } = require('../middleware/auth.middleware');
 
 
@@ -24,6 +24,10 @@ router.get('/', requireAuth, getOpenShiftsController);
 router.get('/claims', requireAuth, requireRole('manager'), listPendingClaims);
 // Employee who claimed shift withdraws claim
 router.put('/withdraw', requireAuth, withdrawShiftsController);
+
+// Caller's own shift history (FR-16). Must stay above GET /:id, or
+// Express would treat "history" as a shift id.
+router.get('/history', requireAuth, getShiftHistory);
 
 // Get Shift by ID
 router.get('/:id', notImplemented);

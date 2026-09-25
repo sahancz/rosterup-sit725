@@ -26,7 +26,33 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshUserStatus(user);
 
   loadOpenShifts();
+  loadShiftsCovered();
 });
+
+// "Shifts Covered" stat — how many shifts this employee has covered for
+// someone else, from the same history endpoint as the Shift History page.
+async function loadShiftsCovered() {
+  const statEl = document.getElementById('statShiftsCovered');
+  const token = localStorage.getItem('rosterup_token');
+
+  try {
+    const response = await fetch('/api/shifts/history', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !Array.isArray(data.history)) {
+      statEl.textContent = '—';
+      return;
+    }
+
+    statEl.textContent = data.history.filter((entry) => entry.outcome === 'covered').length;
+  } catch (err) {
+    console.error('Failed to load shifts covered:', err);
+    statEl.textContent = '—';
+  }
+}
 
 function renderUser(user) {
   document.getElementById('greeting').textContent = `${timeOfDayGreeting()}, ${user.first_name}.`;

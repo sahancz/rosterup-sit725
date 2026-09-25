@@ -116,7 +116,10 @@ async function withdrawPostedShiftService(shiftId, userId, dependencies = {}) {
     return shift;
 }
 
-async function getShiftsService(filter, userId, dependencies = {}) {
+// options.withClaimHistory also populates who each past claim decision was
+// about — only the manager's shift history asks for this, so employees
+// browsing open shifts don't see who else was turned down.
+async function getShiftsService(filter, userId, dependencies = {}, options = {}) {
     if (!userId) {
         throw createHttpError('An authenticated user is required', 401);
     }
@@ -136,10 +139,81 @@ async function getShiftsService(filter, userId, dependencies = {}) {
         workplace: workplaceId,
     };
 
-    const shifts = await ShiftModel.find(scopedFilter)
-        .populate('posted_by', 'first_name last_name')
-        .sort({ shift_date: 1, start_time: 1 });
+    let query = ShiftModel.find(scopedFilter)
+        .populate('posted_by', 'first_name last_name');
+
+    if (options.withClaimHistory) {
+        query = query
+            .populate('claimed_by', 'first_name last_name')
+            .populate('claim_history.employee', 'first_name last_name');
+    }
+
+    const shifts = await query.sort({ shift_date: 1, start_time: 1 });
     return shifts;
+}
+
+function refId(ref) {
+    if (!ref) return null;
+    return String(ref._id || ref);
+}
+
+// Works out what a history entry means from this employee's point of view.
+// A shift only ever reaches here through one of the three $or branches in
+// getShiftHistoryService, so one of these always matches.
+function historyOutcomeFor(shift, userId) {
+    const me = String(userId);
+
+    if (shift.status === 'covered' && refId(shift.claimed_by) === me) {
+        return 'covered';
+    }
+
+    if (refId(shift.posted_by) === me && shift.status === 'covered') {
+        return 'covered_for_you';
+    }
+
+    if (refId(shift.posted_by) === me && shift.status === 'cancelled') {
+        return 'withdrawn';
+    }
+
+    return 'claim_rejected';
+}
+
+// Employee shift history — FR-16. Shifts this employee covered for someone
+// else, their own posted shifts that were covered or withdrawn, and claims
+// of theirs a manager rejected. Scoped to their workplace, same as
+// getShiftsService.
+async function getShiftHistoryService(userId, dependencies = {}) {
+    if (!userId) {
+        throw createHttpError('An authenticated user is required', 401);
+    }
+
+    const ShiftModel = dependencies.ShiftModel || Shift;
+    const UserModel = dependencies.UserModel || User;
+    const resolveWorkplaceId = dependencies.resolveUserWorkplaceId || resolveUserWorkplaceId;
+    const user = await UserModel.findById(userId);
+    const workplaceId = user && await resolveWorkplaceId(user, dependencies);
+
+    if (!workplaceId) {
+        return [];
+    }
+
+    const shifts = await ShiftModel.find({
+        workplace: workplaceId,
+        $or: [
+            { claimed_by: userId, status: 'covered' },
+            { posted_by: userId, status: { $in: ['covered', 'cancelled'] } },
+            { claim_history: { $elemMatch: { employee: userId, outcome: 'rejected' } } },
+        ],
+    })
+        .populate('posted_by', 'first_name last_name')
+        .populate('claimed_by', 'first_name last_name')
+        .sort({ shift_date: -1, start_time: -1 })
+        .lean();
+
+    return shifts.map((shift) => ({
+        ...shift,
+        outcome: historyOutcomeFor(shift, userId),
+    }));
 }
 
 async function listPendingClaims(managerId, dependencies = {}) {
@@ -181,10 +255,13 @@ async function claimShift(shiftId, employeeId, dependencies = {}) {
 
     const ShiftModel = dependencies.ShiftModel || Shift;
 
+    // posted_by: $ne stops an employee claiming a shift they posted
+    // themselves — otherwise they could "cover" their own shift.
     const shift = await ShiftModel.findOneAndUpdate(
         {
             _id: shiftId,
             status: 'open',
+            posted_by: { $ne: employeeId },
         },
         {
             claimed_by: employeeId,
@@ -194,7 +271,7 @@ async function claimShift(shiftId, employeeId, dependencies = {}) {
     );
 
     if (!shift) {
-        throw createHttpError('Open shift not found.', 404);
+        throw createHttpError('Open shift not found, or it is your own shift.', 404);
     }
 
     return shift;
@@ -241,6 +318,17 @@ async function processShiftClaim(shiftId, managerId, action, dependencies = {}) 
         throw createHttpError('Shift claim not found.', 404);
     }
 
+    // Record the decision before claimed_by is cleared on reject, otherwise
+    // there'd be no trace of who was rejected for shift history (FR-16).
+    shift.claim_history = [
+        ...(shift.claim_history || []),
+        {
+            employee: shift.claimed_by,
+            outcome: action === 'approve' ? 'approved' : 'rejected',
+            decided_at: new Date(),
+        },
+    ];
+
     if (action === 'approve') {
         shift.status = 'covered';
     } else {
@@ -255,6 +343,7 @@ async function processShiftClaim(shiftId, managerId, action, dependencies = {}) 
 
 module.exports = {
     getShiftsService,
+    getShiftHistoryService,
     listPendingClaims,
     postShiftsService,
     withdrawShiftsService,

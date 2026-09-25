@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 
 const {
     buildGetOpenShiftsController,
+    buildGetShiftHistoryController,
     buildListPendingClaimsController,
     buildProcessShiftClaimController,
     buildClaimShiftController,
@@ -523,4 +524,48 @@ test('getOpenShiftsController passes a posted_by filter through to the service',
     }, res);
 
     assert.equal(res.statusCode, 200);
+});
+
+test('getShiftHistory returns the history for an authenticated user', async () => {
+    const history = [{ _id: 'shift-1', outcome: 'covered' }];
+    const controller = buildGetShiftHistoryController({
+        getShiftHistoryService: async (userId) => {
+            assert.equal(userId, 'employee-1');
+            return history;
+        },
+    });
+    const res = createResponse();
+
+    await controller({ user: { id: 'employee-1', role: 'employee' } }, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { history });
+});
+
+test('getShiftHistory rejects a request without an authenticated user', async () => {
+    const controller = buildGetShiftHistoryController({
+        getShiftHistoryService: async () => {
+            throw new Error('Service should not run');
+        },
+    });
+    const res = createResponse();
+
+    await controller({}, res);
+
+    assert.equal(res.statusCode, 401);
+    assert.deepEqual(res.body, { error: 'An authenticated user is required' });
+});
+
+test('getShiftHistory does not expose unexpected errors', async () => {
+    const controller = buildGetShiftHistoryController({
+        getShiftHistoryService: async () => {
+            throw new Error('database details');
+        },
+    });
+    const res = createResponse();
+
+    await controller({ user: { id: 'employee-1', role: 'employee' } }, res);
+
+    assert.equal(res.statusCode, 500);
+    assert.deepEqual(res.body, { error: 'Unable to load shift history' });
 });

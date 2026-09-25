@@ -66,8 +66,20 @@ function renderShifts(shifts) {
     return;
   }
 
-  subtitle.textContent = `${shifts.length} shift${shifts.length !== 1 ? 's' : ''} available to claim`;
+  const own = shifts.filter(isOwnShift).length;
+  const claimable = shifts.length - own;
+  subtitle.textContent = `${claimable} shift${claimable !== 1 ? 's' : ''} available to claim`
+    + (own ? ` · ${own} posted by you` : '');
   listEl.innerHTML = shifts.map(shiftCardHtml).join('');
+}
+
+// The API refuses to let you claim your own shift; this just hides the
+// button so it isn't offered in the first place.
+function isOwnShift(shift) {
+  const userJson = localStorage.getItem('rosterup_user');
+  const user = userJson ? JSON.parse(userJson) : null;
+  const postedById = shift.posted_by && (shift.posted_by._id || shift.posted_by);
+  return Boolean(user && postedById && String(postedById) === String(user.id));
 }
 
 function shiftCardHtml(shift) {
@@ -98,8 +110,10 @@ function shiftCardHtml(shift) {
           <span class="eos-badge">Open</span>
         </div>
         <div class="eos-footer">
-          <p>Available to claim</p>
-          <button class="eos-claim-btn" data-shift-id="${shift._id}">Claim Shift</button>
+          ${isOwnShift(shift)
+            ? '<p>This is your shift — withdraw it from My Shifts</p>'
+            : `<p>Available to claim</p>
+          <button class="eos-claim-btn" data-shift-id="${shift._id}">Claim Shift</button>`}
         </div>
       </div>
     </div>

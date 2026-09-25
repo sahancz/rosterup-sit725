@@ -216,6 +216,14 @@ Query parameters: `status` (defaults to `open`), `claimed_by`, `posted_by` — o
    "end_time": "17:00", "shift_role": "Barista", "note": "Doctor's appointment", "status": "open" }]
 ```
 
+**GET /history** 🔒 — the caller's own shift history (FR-16), newest first, scoped to their workplace. Each shift carries an `outcome` from the caller's point of view: `covered` (they covered it for someone), `covered_for_you` (their posted shift was covered), `withdrawn` (they withdrew their posted shift) or `claim_rejected` (a manager rejected their claim).
+```json
+// Response (200)
+{ "history": [{ "_id": "...", "shift_role": "Barista", "status": "covered", "outcome": "covered",
+    "posted_by": { "first_name": "Emily", "last_name": "Wilson" },
+    "claimed_by": { "first_name": "Sarah", "last_name": "Jones" } }] }
+```
+
 **POST /** 🔒 — posts one of the caller's own shifts for cover. Only `shift_date`, `start_time`, `end_time`, `shift_role`, `note` are accepted — `workplace` and `posted_by` are resolved server-side from the token, not the request body.
 
 **PUT /withdraw** 🔒 — withdraws a *claim* the caller made on a shift (not a shift they originally posted — see note below). `shiftId` is passed as a query string, e.g. `PUT /api/shifts/withdraw?shiftId=...`. Resets the shift to `claimed_by: null, status: "open"`. Returns `404` if it isn't a pending claim of yours.
@@ -234,7 +242,7 @@ Query parameters: `status` (defaults to `open`), `claimed_by`, `posted_by` — o
 // Request
 { "action": "approve" }  // or "reject"
 ```
-Approve sets `status: "covered"`; reject reopens it (`status: "open"`, `claimed_by: null`). Returns `{ "shift": {...} }`.
+Approve sets `status: "covered"`; reject reopens it (`status: "open"`, `claimed_by: null`). Either way the decision is appended to the shift's `claim_history` (`employee`, `outcome`, `decided_at`), so a rejected claim still shows up in the employee's shift history. Returns `{ "shift": {...} }`.
 
 **POST /:id/withdraw** 🔒 — withdraws a shift the caller *posted* (FR-23). Only allowed while the shift is still `open` (unclaimed); it's marked `status: "cancelled"` rather than deleted so it stays in shift history. Returns `{ "shift": {...} }`, or `404` if it isn't an open shift you posted. Not to be confused with `PUT /withdraw` above, which withdraws a *claim* instead.
 

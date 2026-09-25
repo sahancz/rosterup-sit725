@@ -74,9 +74,10 @@ test('getManagerShifts returns shifts from the manager workplace', async () => {
     const response = createResponseRecorder();
     const expectedShifts = [{ _id: 'shift-1' }];
     const controller = managerController.buildGetManagerShiftsController({
-        getShiftsService: async (filter, managerId) => {
+        getShiftsService: async (filter, managerId, dependencies, options) => {
             assert.deepEqual(filter, {});
             assert.equal(managerId, 'manager-1');
+            assert.deepEqual(options, { withClaimHistory: true });
             return expectedShifts;
         },
     });
