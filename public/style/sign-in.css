@@ -96,6 +96,7 @@
   cursor: pointer;
 }
 .auth-forgot {
+  text-decoration: none;
   color: var(--color-primary);
   font-weight: 600;
   font-size: 0.75rem;

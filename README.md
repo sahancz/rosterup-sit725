@@ -25,10 +25,26 @@ npm install
 cp .env.example .env
 ```
 
-Invite emails work without any extra setup: by default they go to a free
-[Ethereal](https://ethereal.email) test inbox, and the manager dashboard shows
-a "View email" link to open each one. To deliver them to real inboxes, fill in
-the `SMTP_*` settings in `.env` (see `.env.example`).
+**Emails when running locally.** RosterUp sends two kinds of email: workplace
+invites (manager dashboard → Send Invite) and password reset links (Sign In →
+Forgot password?). With no extra setup they are not delivered to real inboxes —
+they go to a free [Ethereal](https://ethereal.email) test inbox instead. To
+read them:
+
+- **Invite emails:** the manager dashboard shows a **View email** link right
+  after sending.
+- **Password reset emails:** look in the **terminal where the server is
+  running** for a line like
+  `Password reset email for sarah.jones@test.com: https://ethereal.email/message/...`
+  and open that link, then click **Choose a new password** in the email. (The
+  web page deliberately doesn't show this link — otherwise anyone could reset
+  someone else's password just by typing their email.)
+
+To deliver emails to real inboxes instead, fill in the `SMTP_*` settings in
+`.env` (see `.env.example`, e.g. Gmail with an app password).
+
+After testing a password reset or profile change, `npm run seed` puts the demo
+accounts back to their original names and the password `Password123!`.
 
 3. Start MongoDB and add the demo data.
 
@@ -197,6 +213,18 @@ those marked 🔒 Manager also require the signed-in user's role to be
 **POST /logout** — stateless; the client just discards its token. Returns `{ "success": true, "message": "Logged out successfully." }`.
 
 **GET /me** 🔒 — returns the caller's current profile (same `user` shape as login). Used by dashboards to pick up changes like a manager's approval without needing to log back in.
+
+**POST /forgot-password** — starts a password reset (FR-03). Emails a one-time link to `reset-password.html?token=...`, valid for 1 hour; only a SHA-256 hash of the token is stored. Always returns the same `200` message whether or not the email has an account, so the form can't be used to find out who is registered (`400` only for a malformed email). In test-inbox mode (no SMTP configured) the email's preview link is printed in the server console.
+```json
+// Request
+{ "email": "sarah.jones@test.com" }
+```
+
+**POST /reset-password** — sets a new password from that link (FR-03). The new password must be at least 8 characters. The link works once; an unknown, used or expired token returns `400`.
+```json
+// Request
+{ "token": "...", "password": "NewPassword456!" }
+```
 
 ### Workplaces (`/api/workplaces`)
 
