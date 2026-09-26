@@ -44,11 +44,11 @@ document.getElementById('resetForm').addEventListener('submit', async (e) => {
       return;
     }
 
-    // Done: the link can't be used again, so keep the button disabled and
-    // send them to sign in.
-    showMessage(`${data.message} Redirecting to sign in…`, 'success');
-    submitBtn.textContent = 'Password Reset';
-    setTimeout(() => { window.location.href = 'sign-in.html'; }, 2500);
+    // Done: the link can't be used again, so swap the form for a button to
+    // sign in. No automatic redirect, so there's time to read the message.
+    showMessage(data.message, 'success');
+    document.getElementById('resetForm').classList.add('hidden');
+    document.getElementById('signInLink').classList.remove('hidden');
   } catch (err) {
     console.error('Reset password request failed:', err);
     showMessage('Connection error. Please try again.', 'error');
