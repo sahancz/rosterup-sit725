@@ -194,8 +194,16 @@
   color: var(--color-destructive);
   border: 1px solid rgba(226, 86, 86, 0.15);
 }
-/* "Go to Sign In" shown after a successful password reset (FR-03). */
+/* Password reset flow (FR-03): success messages use the app's green (same
+   as the "Covered" badge), and the "Go to Sign In" button gets its own space
+   below the message. */
+.alert-box.alert-done {
+  background-color: #DDF2E7;
+  color: #166534;
+  border: 1px solid rgba(22, 101, 52, 0.15);
+}
 .reset-sign-in-btn {
   text-decoration: none;
   box-sizing: border-box;
+  margin-top: 1.25rem;
 }
