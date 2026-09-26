@@ -45,6 +45,5 @@ document.getElementById('forgotForm').addEventListener('submit', async (e) => {
 function showMessage(text, type) {
   const box = document.getElementById('messageBox');
   box.textContent = text;
-  // Success uses the green "done" style; errors keep the shared red one.
-  box.className = type === 'success' ? 'alert-box alert-done' : `alert-box alert-${type}`;
+  box.className = `alert-box alert-${type}`;
 }

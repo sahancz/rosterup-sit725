@@ -119,13 +119,43 @@ function shiftCardHtml(shift) {
         <span class="mwv-status mwv-status--${escapeHtml(shift.status)}">${escapeHtml(capitalize(shift.status))}</span>
       </div>
       <p class="mwv-shift-time"><span class="material-icons">schedule</span>${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
-      <p class="mwv-shift-person">Offered by <strong>${escapeHtml(postedBy)}</strong>${dateSuffix(shift.createdAt)}</p>
-      ${reasonLine(shift.note)}
-      ${shift.status === 'covered' && personName(shift.claimed_by) ? `<p class="mwv-shift-person">Covered by <strong>${escapeHtml(personName(shift.claimed_by))}</strong>${dateSuffix(approvedAt(shift))}</p>` : ''}
-      ${shift.status === 'cancelled' ? `<p class="mwv-shift-person">Withdrawn${dateSuffix(shift.updatedAt)}</p>${reasonLine(shift.cancel_reason)}` : ''}
-      ${rejectedClaims(shift).map(entry => `<p class="mwv-shift-person mwv-shift-person--rejected">Claim rejected: <strong>${escapeHtml(personName(entry.employee) || 'Unknown')}</strong>${dateSuffix(entry.decided_at)}</p>${reasonLine(entry.reason)}`).join('')}
+      ${shiftEvents(shift, postedBy).map(event => event.html).join('')}
     </article>
   `;
+}
+
+// Everything that happened to a shift, oldest first: offered, each rejected
+// claim, then covered or withdrawn. Sorted by date so the card reads as a
+// timeline rather than grouped by type.
+function shiftEvents(shift, postedBy) {
+  const events = [{
+    at: shift.createdAt,
+    html: `<p class="mwv-shift-person">Offered by <strong>${escapeHtml(postedBy)}</strong>${dateSuffix(shift.createdAt)}</p>${reasonLine(shift.note)}`,
+  }];
+
+  rejectedClaims(shift).forEach(entry => events.push({
+    at: entry.decided_at,
+    html: `<p class="mwv-shift-person mwv-shift-person--rejected">Claim rejected: <strong>${escapeHtml(personName(entry.employee) || 'Unknown')}</strong>${dateSuffix(entry.decided_at)}</p>${reasonLine(entry.reason)}`,
+  }));
+
+  if (shift.status === 'covered' && personName(shift.claimed_by)) {
+    events.push({
+      at: approvedAt(shift) || shift.updatedAt,
+      html: `<p class="mwv-shift-person">Covered by <strong>${escapeHtml(personName(shift.claimed_by))}</strong>${dateSuffix(approvedAt(shift))}</p>`,
+    });
+  }
+
+  if (shift.status === 'cancelled') {
+    events.push({
+      at: shift.updatedAt,
+      html: `<p class="mwv-shift-person">Withdrawn${dateSuffix(shift.updatedAt)}</p>${reasonLine(shift.cancel_reason)}`,
+    });
+  }
+
+  // Stable sort: events without a date keep their place after "Offered".
+  return events
+    .map((event, index) => ({ ...event, index, time: event.at ? new Date(event.at).getTime() : Infinity }))
+    .sort((a, b) => (a.time - b.time) || (a.index - b.index));
 }
 
 function personName(person) {
