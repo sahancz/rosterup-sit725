@@ -115,3 +115,28 @@
   font-size: 0.875rem;
   cursor: not-allowed;
 }
+
+/* FR-22: editable profile and password forms. */
+.profile-name-row {
+  display: flex;
+  gap: 1rem;
+}
+.profile-name-row .field {
+  flex: 1;
+  min-width: 0;
+}
+.profile-save-btn {
+  margin-top: 1.25rem;
+}
+@media (max-width: 480px) {
+  .profile-name-row { flex-direction: column; }
+}
+.mpr-fields .field input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(141, 122, 184, 0.25);
+}
+#profileMessage, #passwordMessage {
+  margin: 1rem 0 0;
+  text-align: left;
+}

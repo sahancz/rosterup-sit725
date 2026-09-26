@@ -74,48 +74,57 @@
           </div>
         </div>
 
-        <div class="emp-stat-card emp-profile-card">
+        <form class="emp-stat-card emp-profile-card" id="profileForm" novalidate>
           <h3 class="emp-profile-card-title">Personal Information</h3>
           <div class="emp-profile-fields">
-            <div class="field">
-              <label>Full name</label>
-              <input type="text" id="fieldName" disabled>
+            <div class="profile-name-row">
+              <div class="field">
+                <label for="fieldFirstName">First name</label>
+                <input type="text" id="fieldFirstName" maxlength="50" autocomplete="given-name" required>
+              </div>
+              <div class="field">
+                <label for="fieldLastName">Last name</label>
+                <input type="text" id="fieldLastName" maxlength="50" autocomplete="family-name" required>
+              </div>
             </div>
             <div class="field">
-              <label>Email address</label>
-              <input type="email" id="fieldEmail" disabled>
+              <label for="fieldEmail">Email address</label>
+              <input type="email" id="fieldEmail" maxlength="254" autocomplete="email" required>
             </div>
             <div class="field">
-              <label>Account type</label>
+              <label for="fieldRole">Account type</label>
               <input type="text" id="fieldRole" disabled>
             </div>
           </div>
-          <button class="btn-secondary-disabled" disabled title="Editing your profile details isn't built yet (see Trello)">Save Changes</button>
-        </div>
+          <div id="profileMessage" class="alert-box hidden"></div>
+          <button type="submit" id="profileSaveBtn" class="btn-primary profile-save-btn">Save Changes</button>
+        </form>
 
-        <div class="emp-stat-card emp-profile-card">
+        <form class="emp-stat-card emp-profile-card" id="passwordForm" novalidate>
           <h3 class="emp-profile-card-title">Change Password</h3>
           <div class="emp-profile-fields">
             <div class="field">
-              <label>Current password</label>
-              <input type="password" placeholder="••••••••" disabled>
+              <label for="currentPassword">Current password</label>
+              <input type="password" id="currentPassword" autocomplete="current-password">
             </div>
             <div class="field">
-              <label>New password</label>
-              <input type="password" placeholder="••••••••" disabled>
+              <label for="newPassword">New password</label>
+              <input type="password" id="newPassword" minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
             </div>
             <div class="field">
-              <label>Confirm new password</label>
-              <input type="password" placeholder="••••••••" disabled>
+              <label for="confirmPassword">Confirm new password</label>
+              <input type="password" id="confirmPassword" autocomplete="new-password">
             </div>
           </div>
-          <button class="btn-secondary-disabled" disabled title="Changing your password isn't built yet (see Trello)">Update Password</button>
-        </div>
+          <div id="passwordMessage" class="alert-box hidden"></div>
+          <button type="submit" id="passwordSaveBtn" class="btn-primary profile-save-btn">Update Password</button>
+        </form>
       </div>
     </main>
   </div>
 
   <script src="js/emp-utils.js"></script>
+  <script src="js/profile-forms.js"></script>
   <script src="js/employee-profile.js"></script>
 </body>
 </html>

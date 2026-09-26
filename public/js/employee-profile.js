@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
+  setupProfileForms({
+    onProfileUpdated: (updated) => {
+      renderSidebar(updated);
+      renderProfile(updated);
+    }
+  });
 
   refreshUser();
 });
@@ -39,8 +45,7 @@ function renderProfile(user) {
     badge.classList.add('hidden');
   }
 
-  document.getElementById('fieldName').value = `${user.first_name} ${user.last_name}`;
-  document.getElementById('fieldEmail').value = user.email;
+  fillProfileFields(user);
   document.getElementById('fieldRole').value = capitalize(user.role);
 }
 
