@@ -382,6 +382,7 @@ Direct pushes, force pushes, and deletion of `main` are blocked.
 
 - [Contribution guide](CONTRIBUTING.md)
 - [Branch and merge guide](docs/MERGE_GUIDE.md)
+- [End-to-end test report (Sprint 2)](docs/E2E_TEST_REPORT.md) — every user story with screenshots
 - [Pull-request template](.github/pull_request_template.md)
 - [GitHub contributors](https://github.com/sahancz/rosterup-sit725/graphs/contributors)
 
