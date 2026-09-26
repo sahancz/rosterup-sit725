@@ -19,11 +19,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
   document.getElementById('dashCopyInviteBtn').addEventListener('click', handleCopyInviteCode);
+  document.getElementById('inviteEmailForm').addEventListener('submit', handleSendInviteEmail);
 
   checkWorkplace();
   loadPendingEmployees();
   loadPendingClaims();
+  loadWorkplaceSummary();
 });
+
+async function loadWorkplaceSummary() {
+  const employeesStat = document.getElementById('statActiveEmployees');
+  const shiftsStat = document.getElementById('statOpenShifts');
+  const token = localStorage.getItem('rosterup_token');
+
+  try {
+    const [employeesResponse, shiftsResponse] = await Promise.all([
+      fetch('/api/manager/employees', {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      fetch('/api/manager/shifts', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
+
+    const employeesData = await employeesResponse.json();
+    const shiftsData = await shiftsResponse.json();
+
+    if (employeesResponse.ok && employeesData.success) {
+      employeesStat.textContent = employeesData.employees.filter(
+        employee => employee.workplace_status === 'approved'
+      ).length;
+    }
+
+    if (shiftsResponse.ok && shiftsData.success) {
+      shiftsStat.textContent = shiftsData.shifts.filter(shift => shift.status === 'open').length;
+    }
+  } catch (error) {
+    console.error('Failed to load workplace summary:', error);
+  }
+}
 
 // Signing in already redirects a workplace-less manager to
 // manager-workplace-setup.html, but a manager can still land here directly
@@ -68,6 +102,89 @@ async function handleCopyInviteCode() {
   const originalHtml = copyBtn.innerHTML;
   copyBtn.innerHTML = '<span class="material-icons">check</span> Copied!';
   setTimeout(() => { copyBtn.innerHTML = originalHtml; }, 1500);
+}
+
+// Same loose check as the server (one @, a dot in the domain, no spaces) —
+// catches typos before a round trip; the server validates again.
+const INVITE_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+async function handleSendInviteEmail(e) {
+  e.preventDefault();
+
+  const input = document.getElementById('inviteEmail');
+  const button = document.getElementById('inviteEmailBtn');
+  const messageBox = document.getElementById('inviteEmailMessage');
+  const email = input.value.trim();
+  const token = localStorage.getItem('rosterup_token');
+
+  if (!email) {
+    showInviteMessage('Please enter the employee\'s email address.', 'error');
+    input.focus();
+    return;
+  }
+
+  if (!INVITE_EMAIL_PATTERN.test(email)) {
+    showInviteMessage('That doesn\'t look like a valid email address.', 'error');
+    input.focus();
+    return;
+  }
+
+  const originalHtml = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = '<span class="material-icons">hourglass_empty</span> Sending…';
+  messageBox.className = 'alert-box hidden';
+
+  try {
+    const response = await fetch('/api/workplaces/mine/invite-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ email })
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem('rosterup_token');
+      localStorage.removeItem('rosterup_user');
+      window.location.href = 'sign-in.html';
+      return;
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      showInviteMessage(data.error || 'Could not send the invite. Please try again.', 'error');
+      return;
+    }
+
+    showInviteMessage(data.message || `Invite sent to ${email}`, 'success', data.previewUrl);
+    input.value = '';
+  } catch (err) {
+    console.error('Failed to send invite email:', err);
+    showInviteMessage('Connection error. Please try again.', 'error');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = originalHtml;
+  }
+}
+
+// previewUrl is only set in test-inbox mode (no SMTP configured) — it
+// opens the email that was sent so it can be checked without a real inbox.
+function showInviteMessage(text, type, previewUrl) {
+  const box = document.getElementById('inviteEmailMessage');
+  box.textContent = text;
+
+  if (previewUrl) {
+    const link = document.createElement('a');
+    link.href = previewUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.textContent = 'View email (test inbox)';
+    box.append(' — ', link);
+  }
+
+  box.className = `alert-box alert-${type}`;
 }
 
 function timeOfDayGreeting() {
@@ -260,6 +377,7 @@ async function processEmployee(userId, action) {
       messageBox.textContent = `Successfully ${action}d ${data.employeeName}.`;
       messageBox.className = 'alert-box alert-success';
       loadPendingEmployees();
+      loadWorkplaceSummary();
     } else {
       messageBox.textContent = data.message || 'Could not process this request.';
       messageBox.className = 'alert-box alert-error';

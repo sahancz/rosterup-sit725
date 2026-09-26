@@ -71,3 +71,46 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Optional reason step when withdrawing your own posted shift (FR-23). */
+.msh-withdraw-form {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(141, 122, 184, 0.08);
+}
+.msh-withdraw-form label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-bottom: 0.375rem;
+}
+.msh-withdraw-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius);
+  border: 1px solid rgba(141, 122, 184, 0.25);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-family: var(--font-family);
+  resize: vertical;
+}
+.msh-withdraw-note {
+  margin: 0.375rem 0 0.625rem;
+  font-size: 0.75rem;
+  color: var(--color-muted-foreground);
+}
+.msh-withdraw-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.msh-cancel-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-muted-foreground);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.msh-cancel-btn:hover { background: var(--color-muted); }

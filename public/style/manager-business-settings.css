@@ -1,0 +1,97 @@
+.mbs-wrap {
+  max-width: 42rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mbs-card {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.mbs-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.mbs-row {
+  display: grid;
+  grid-template-columns: 1fr 10rem;
+  gap: 1rem;
+}
+
+.mbs-field label,
+.mbs-invite-label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-foreground);
+  margin: 0 0 0.375rem;
+}
+
+.mbs-field input,
+.mbs-field select {
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid rgba(141, 122, 184, 0.25);
+  background: #fff;
+  padding: 0.625rem 1rem;
+  font-family: inherit;
+  font-size: 0.875rem;
+  color: var(--color-foreground);
+  box-sizing: border-box;
+}
+
+.mbs-field input:focus,
+.mbs-field select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid rgba(141, 122, 184, 0.15);
+}
+
+.mbs-message {
+  min-height: 1.25rem;
+  margin-top: 0.75rem;
+  color: var(--color-destructive);
+  font-size: 0.8125rem;
+}
+
+.mbs-invite-code {
+  margin: 0.75rem 0 1.25rem;
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: var(--color-muted);
+  color: var(--color-primary);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-align: center;
+}
+
+.mbs-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.mbs-actions .btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.mbs-actions .material-icons {
+  font-size: 17px;
+}
+
+@media (max-width: 720px) {
+  .mbs-row,
+  .mbs-actions {
+    grid-template-columns: 1fr;
+  }
+}

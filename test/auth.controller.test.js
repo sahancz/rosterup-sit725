@@ -44,6 +44,41 @@ test('login rejects a request missing password', async () => {
     assert.equal(response.body.success, false);
 });
 
+test('login rejects a wrong password without saying which field was wrong', async () => {
+    const originalFindOne = User.findOne;
+    const passwordHash = await bcrypt.hash('RightPass123', 4);
+    User.findOne = async () => ({ _id: 'user-1', email: 'nat@test.com', password_hashed: passwordHash, active: true });
+
+    const response = createResponseRecorder();
+
+    try {
+        await authController.login({ body: { email: 'nat@test.com', password: 'WrongPass123' } }, response);
+
+        assert.equal(response.statusCode, 401);
+        assert.equal(response.body.success, false);
+        assert.equal(response.body.message, 'Invalid email or password.');
+        assert.equal(response.body.token, undefined);
+    } finally {
+        User.findOne = originalFindOne;
+    }
+});
+
+test('login gives the same answer for an email that has no account', async () => {
+    const originalFindOne = User.findOne;
+    User.findOne = async () => null;
+
+    const response = createResponseRecorder();
+
+    try {
+        await authController.login({ body: { email: 'nobody@test.com', password: 'WhateverPass1' } }, response);
+
+        assert.equal(response.statusCode, 401);
+        assert.equal(response.body.message, 'Invalid email or password.');
+    } finally {
+        User.findOne = originalFindOne;
+    }
+});
+
 test('logout always responds with success (stateless JWT)', async () => {
     const response = createResponseRecorder();
 

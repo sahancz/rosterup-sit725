@@ -10,7 +10,7 @@ const Shift = require('../models/Shift');
 //
 // IMPORTANT: this script is idempotent and non-destructive. It only ever
 // touches the specific demo records below (matched by their fixed email
-// addresses / invite code), so it's safe to run again and again without
+// addresses / the demo manager's workplace), so it's safe to run again and again without
 // wiping out anyone else's manually-registered test accounts, workplaces,
 // or shifts. (Earlier versions of this script called deleteMany({}) on all
 // three collections first, which is exactly the kind of thing that erases
@@ -42,9 +42,25 @@ const seedDatabase = async () => {
             { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        // Upsert the demo workplace (matched by its fixed invite code).
+        // Upsert the demo workplace, matched by the demo manager rather than
+        // the invite code: the code can be regenerated from Business
+        // Settings, and matching on it then created a second "RosterUp Cafe"
+        // for the same manager — the employees moved to the new one while
+        // the manager kept seeing the old one. Keep the oldest (chat rooms
+        // are keyed by workplace id) and remove any duplicates plus their
+        // shifts. Only ever touches the demo manager's own workplaces.
+        const demoWorkplaces = await Workplace.find({ manager_id: manager._id }).sort({ createdAt: 1 });
+        const duplicateIds = demoWorkplaces.slice(1).map((w) => w._id);
+        if (duplicateIds.length > 0) {
+            await Shift.deleteMany({ workplace: { $in: duplicateIds } });
+            await Workplace.deleteMany({ _id: { $in: duplicateIds } });
+            console.log(`Removed ${duplicateIds.length} duplicate demo workplace(s)`);
+        }
+
         const workplace = await Workplace.findOneAndUpdate(
-            { invite_code: DEMO_INVITE_CODE },
+            demoWorkplaces.length > 0
+                ? { _id: demoWorkplaces[0]._id }
+                : { invite_code: DEMO_INVITE_CODE },
             {
                 $set: {
                     workplace_name: 'RosterUp Cafe',
@@ -101,7 +117,9 @@ const seedDatabase = async () => {
                 end_time: '17:00',
                 shift_role: 'Barista',
                 note: 'Unable to work due to an appointment.',
-                status: 'open'
+                status: 'open',
+                createdAt: new Date('2026-09-05'),
+                updatedAt: new Date('2026-09-05')
             },
             {
                 workplace: workplace._id,
@@ -112,7 +130,9 @@ const seedDatabase = async () => {
                 end_time: '20:00',
                 shift_role: 'Front of House',
                 note: 'Looking for someone to cover my Saturday shift.',
-                status: 'pending'
+                status: 'pending',
+                createdAt: new Date('2026-09-07'),
+                updatedAt: new Date('2026-09-09')
             },
             {
                 workplace: workplace._id,
@@ -123,7 +143,24 @@ const seedDatabase = async () => {
                 end_time: '15:00',
                 shift_role: 'Barista',
                 note: 'Morning shift.',
-                status: 'covered'
+                status: 'covered',
+                claim_history: [{ employee: emily._id, outcome: 'approved', decided_at: new Date('2026-09-11') }],
+                createdAt: new Date('2026-09-09'),
+                updatedAt: new Date('2026-09-11')
+            },
+            {
+                workplace: workplace._id,
+                posted_by: emily._id,
+                claimed_by: sarah._id,
+                shift_date: new Date('2026-09-08'),
+                start_time: '08:00',
+                end_time: '14:00',
+                shift_role: 'Barista',
+                note: 'Family event.',
+                status: 'covered',
+                claim_history: [{ employee: sarah._id, outcome: 'approved', decided_at: new Date('2026-09-06') }],
+                createdAt: new Date('2026-09-03'),
+                updatedAt: new Date('2026-09-06')
             },
             {
                 workplace: workplace._id,
@@ -132,8 +169,11 @@ const seedDatabase = async () => {
                 start_time: '16:00',
                 end_time: '22:00',
                 shift_role: 'Front of House',
-                note: 'No longer need cover.',
-                status: 'cancelled'
+                note: 'Doctor appointment.',
+                status: 'cancelled',
+                cancel_reason: 'Appointment moved to the morning, I can work this shift.',
+                createdAt: new Date('2026-09-10'),
+                updatedAt: new Date('2026-09-13')
             },
             {
                 workplace: workplace._id,
@@ -143,9 +183,14 @@ const seedDatabase = async () => {
                 end_time: '18:00',
                 shift_role: 'Kitchen Hand',
                 note: 'Need someone to cover this shift.',
-                status: 'open'
+                status: 'open',
+                claim_history: [{ employee: sarah._id, outcome: 'rejected', decided_at: new Date('2026-09-15'), reason: 'Sarah is already rostered on that morning.' }],
+                createdAt: new Date('2026-09-12'),
+                updatedAt: new Date('2026-09-15')
             }
-        ]);
+        // timestamps: false so the demo createdAt/updatedAt above are kept —
+        // otherwise every demo shift would look like it was posted today.
+        ], { timestamps: false });
 
         console.log('Demo data seeded successfully (existing non-demo data left untouched)');
         console.log(`Workplace: ${workplace.workplace_name}`);

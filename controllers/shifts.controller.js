@@ -1,86 +1,129 @@
 const shiftsService = require('../services/shifts.service');
 
-const postShiftsController = async (req, res) => {
-    try {
-        const employeeId = req.user?.id || req.user?._id;
+function buildPostShiftsController(service = shiftsService) {
+    return async function postShiftsController(req, res) {
+        try {
+            const employeeId = req.user?.id || req.user?._id;
 
-        if (!employeeId) {
-            return res.status(401).json({ message: 'Authentication required.' });
+            if (!employeeId) {
+                return res.status(401).json({ message: 'Authentication required.' });
+            }
+
+            const shiftBody = req.body;
+
+            const postedShift = await service.postShiftsService(shiftBody, employeeId);
+
+            res.status(200).json(postedShift);
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            if (error.name == "ValidationError") {
+                res.status(500).json({message: `Data inputted incorrectly. Please check the ${Object.keys(error.errors).join(", ")} fields and ensure they are inputted correctly.`})
+            } else if (statusCode !== 500) {
+                res.status(statusCode).json({ message: error.message });
+            } else {
+                res.status(500).json({ message: error.message, error: error });
+            }
         }
+    };
+}
 
-        const shiftBody = req.body;
+const postShiftsController = buildPostShiftsController();
 
-        const postedShift = await shiftsService.postShiftsService(shiftBody, employeeId);
+function buildWithdrawShiftsController(service = shiftsService) {
+    return async function withdrawShiftsController(req, res) {
+        try {
+            const employeeId = req.user?.id || req.user?._id;
 
-        res.status(200).json(postedShift);
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
+            if (!employeeId) {
+                return res.status(401).json({ message: 'Authentication required.' });
+            }
 
-        if (error.name == "ValidationError") {
-            res.status(500).json({message: `Data inputted incorrectly. Please check the ${Object.keys(error.errors).join(", ")} fields and ensure they are inputted correctly.`})
-        } else if (statusCode !== 500) {
-            res.status(statusCode).json({ message: error.message });
-        } else {
-            res.status(500).json({ message: error.message, error: error });
-        }
-    }
-};
+            const { shiftId } = req.query;
 
-const withdrawShiftsController = async (req, res) => {
-    try {
-        const employeeId = req.user?.id || req.user?._id;
+            if (!shiftId) {
+                return res.status(400).json({
+                    message: 'shiftId is required'
+                });
+            }
 
-        if (!employeeId) {
-            return res.status(401).json({ message: 'Authentication required.' });
-        }
+            const withdrawnShift = await service.withdrawShiftsService(shiftId, employeeId);
 
-        const { shiftId } = req.query;
+            if (!withdrawnShift) {
+                return res.status(404).json({
+                    message: 'Shift not found, or it is not a pending claim of yours'
+                });
+            }
 
-        if (!shiftId) {
-            return res.status(400).json({
-                message: 'shiftId is required'
+            return res.status(200).json(withdrawnShift);
+
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+            return res.status(statusCode).json({
+                message: error.message
             });
         }
+    };
+}
 
-        const withdrawnShift = await shiftsService.withdrawShiftsService(shiftId, employeeId);
+const withdrawShiftsController = buildWithdrawShiftsController();
 
-        if (!withdrawnShift) {
-            return res.status(404).json({
-                message: 'Shift not found, or it is not a pending claim of yours'
+function buildGetOpenShiftsController(service = shiftsService) {
+    return async function getOpenShifts(req, res) {
+        try {
+            const userId = req.user?.id || req.user?._id;
+
+            if (!userId) {
+                return res.status(401).json({ message: 'Authentication required.' });
+            }
+
+            const { status, claimed_by, posted_by } = req.query || {};
+            const filter = { status: status || 'open' };
+
+            if (claimed_by) filter.claimed_by = claimed_by;
+            if (posted_by) filter.posted_by = posted_by;
+
+            const shifts = await service.getShiftsService(filter, userId);
+
+            return res.status(200).json(shifts);
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({ message: error.message });
+        }
+    };
+}
+
+const getOpenShiftsController = buildGetOpenShiftsController();
+
+// GET /shifts/history — the caller's own shift history (FR-16).
+function buildGetShiftHistoryController(service = shiftsService) {
+    return async function getShiftHistory(req, res) {
+        try {
+            const userId = req.user?.id || req.user?._id;
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'An authenticated user is required',
+                });
+            }
+
+            const history = await service.getShiftHistoryService(userId);
+
+            return res.status(200).json({ history });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to load shift history'
+                    : error.message,
             });
         }
+    };
+}
 
-        return res.status(200).json(withdrawnShift);
-
-    } catch (error) {
-        const statusCode = error.statusCode || 500;
-        return res.status(statusCode).json({
-            message: error.message
-        });
-    }
-};
-
-const getOpenShiftsController = async (req, res) => {
-    try {
-        const { workplace, status, claimed_by } = req.query;
-
-        const filter = {};
-
-        if (workplace) filter.workplace = workplace;
-        if (claimed_by) filter.claimed_by = claimed_by;
-        filter.status = status || "open";
-
-        const shifts = await shiftsService.getShiftsService(filter);
-
-        res.status(200).json(shifts);
-    } catch (error) {
-        if (error.name == "CastError") {
-            res.status(500).json({ message: `Unable to cast value from ${error.valueType} to ${error.kind}` })
-        } else {
-            res.status(500).json({ message: error.message, error: error });
-        }
-    }
-};
+const getShiftHistory = buildGetShiftHistoryController();
 
 function buildListPendingClaimsController(service = shiftsService) {
     return async function listPendingClaims(req, res) {
@@ -122,9 +165,9 @@ function buildProcessShiftClaimController(service = shiftsService) {
         try {
             const managerId = req.user?.id || req.user?._id;
             const { id } = req.params;
-            const { action } = req.body || {};
+            const { action, reason } = req.body || {};
 
-            const shift = await service.processShiftClaim(id, managerId, action);
+            const shift = await service.processShiftClaim(id, managerId, action, reason);
 
             return res.status(200).json({ shift });
         } catch (error) {
@@ -171,14 +214,53 @@ function buildClaimShiftController(service = shiftsService) {
 
 const claimShift = buildClaimShiftController();
 
+// POST /shifts/:id/withdraw — employee withdraws a shift they posted (FR-23).
+function buildWithdrawPostedShiftController(service = shiftsService) {
+    return async function withdrawPostedShift(req, res) {
+        try {
+            const userId = req.user?.id || req.user?._id;
+            const { id } = req.params;
+
+            if (!userId) {
+                return res.status(401).json({
+                    error: 'An authenticated user is required',
+                });
+            }
+
+            const { reason } = req.body || {};
+
+            const shift = await service.withdrawPostedShiftService(id, userId, reason);
+
+            return res.status(200).json({ shift });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to withdraw shift'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const withdrawPostedShift = buildWithdrawPostedShiftController();
+
 module.exports = {
+    buildGetOpenShiftsController,
     getOpenShiftsController,
+    buildGetShiftHistoryController,
+    getShiftHistory,
     buildListPendingClaimsController,
     listPendingClaims,
     buildProcessShiftClaimController,
     processShiftClaim,
     buildClaimShiftController,
     claimShift,
+    buildPostShiftsController,
     postShiftsController,
-    withdrawShiftsController
+    buildWithdrawShiftsController,
+    withdrawShiftsController,
+    buildWithdrawPostedShiftController,
+    withdrawPostedShift
 };

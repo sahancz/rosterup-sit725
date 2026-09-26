@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RosterUp — Shift History</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="/style/main.css">
+  <link rel="stylesheet" href="/style/manager-dashboard.css">
+  <link rel="stylesheet" href="/style/manager-workplace-view.css">
+</head>
+<body data-shift-view="history">
+  <div class="mgr-shell">
+    <aside class="mgr-sidebar">
+      <div class="mgr-sidebar-header">
+        <div class="auth-logo">
+          <div class="auth-logo-box" style="width:32px;height:32px;font-size:0.875rem;">R</div>
+          <span class="auth-logo-text" style="font-size:1rem;">RosterUp</span>
+        </div>
+        <div class="mgr-sidebar-role">
+          <span class="material-icons">security</span>
+          <span>Manager</span>
+        </div>
+      </div>
+
+      <nav class="mgr-nav">
+        <a href="manager-dashboard.html" class="mgr-nav-item">
+          <span class="material-icons">dashboard</span> Dashboard
+        </a>
+        <a href="manager-approvals.html" class="mgr-nav-item">
+          <span class="material-icons">group</span> Employees
+        </a>
+        <a href="manager-shift-approvals.html" class="mgr-nav-item">
+          <span class="material-icons">assignment</span> Shift Approvals
+        </a>
+        <a href="manager-shifts.html" class="mgr-nav-item">
+          <span class="material-icons">calendar_today</span> All Shifts
+        </a>
+        <a href="manager-shift-history.html" class="mgr-nav-item mgr-nav-item--active">
+          <span class="material-icons">history</span> Shift History
+        </a>
+        <a href="manager-business-settings.html" class="mgr-nav-item">
+          <span class="material-icons">settings</span> Business Settings
+        </a>
+        <a href="manager-chat.html" class="mgr-nav-item">
+          <span class="material-icons">forum</span> Team Chat
+        </a>
+        <a href="manager-profile.html" class="mgr-nav-item">
+          <span class="material-icons">person</span> Profile
+        </a>
+      </nav>
+
+      <div class="mgr-sidebar-footer">
+        <div class="mgr-user-row">
+          <div class="mgr-avatar" id="userAvatar">--</div>
+          <div style="min-width:0;">
+            <p class="mgr-user-name" id="userName">Manager</p>
+            <p class="mgr-user-role">Manager</p>
+          </div>
+        </div>
+        <button class="mgr-logout-btn" id="logoutLink">
+          <span class="material-icons">logout</span> Logout
+        </button>
+      </div>
+    </aside>
+
+    <main class="mgr-main">
+      <div class="mgr-page-header">
+        <h1>Shift History</h1>
+      </div>
+
+      <div id="managerShiftList" class="mwv-shift-grid">
+        <div class="mgr-empty-card"><p>Loading…</p></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/manager-shifts.js"></script>
+</body>
+</html>

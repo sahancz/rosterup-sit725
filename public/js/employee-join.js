@@ -1,3 +1,10 @@
+    // Opened from an invite email (employee-join.html?code=RU-ABC234)?
+    // Fill the code in for them.
+    const invitedCode = new URLSearchParams(window.location.search).get('code');
+    if (invitedCode) {
+        document.getElementById('inviteCode').value = invitedCode;
+    }
+
     document.getElementById('employeeJoinForm').addEventListener('submit', async (e) => {
         e.preventDefault();
 

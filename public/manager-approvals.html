@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/style/main.css">
   <link rel="stylesheet" href="/style/manager-dashboard.css">
   <link rel="stylesheet" href="/style/manager-approvals.css">
+  <link rel="stylesheet" href="/style/manager-workplace-view.css">
 </head>
 <body>
 
@@ -35,15 +36,15 @@
         <a href="manager-shift-approvals.html" class="mgr-nav-item">
           <span class="material-icons">assignment</span> Shift Approvals
         </a>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        <a href="manager-shifts.html" class="mgr-nav-item">
           <span class="material-icons">calendar_today</span> All Shifts
-        </span>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        </a>
+        <a href="manager-shift-history.html" class="mgr-nav-item">
           <span class="material-icons">history</span> Shift History
-        </span>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        </a>
+        <a href="manager-business-settings.html" class="mgr-nav-item">
           <span class="material-icons">settings</span> Business Settings
-        </span>
+        </a>
         <a href="manager-chat.html" class="mgr-nav-item">
           <span class="material-icons">forum</span> Team Chat
         </a>
@@ -74,6 +75,18 @@
 
       <div class="mar-wrap">
         <div id="globalMessage" class="alert-box hidden"></div>
+
+        <div class="mwv-section-heading">
+          <h2>Active Employees</h2>
+          <span id="activeEmployeeCount">0</span>
+        </div>
+        <div id="employeeList" class="mwv-employee-grid">
+          <div class="mgr-empty-card"><p>Loading…</p></div>
+        </div>
+
+        <div class="mwv-section-heading mwv-section-heading--spaced">
+          <h2>Pending Employees</h2>
+        </div>
 
         <div id="loadingState" class="mgr-empty-card"><p>Loading…</p></div>
 

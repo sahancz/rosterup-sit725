@@ -59,9 +59,95 @@ function buildGetMyWorkplaceController(service = workplaceService) {
 
 const getMyWorkplace = buildGetMyWorkplaceController();
 
+function buildUpdateMyWorkplaceController(service = workplaceService) {
+    return async function updateMyWorkplace(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const workplace = await service.updateWorkplaceByManagerId(
+                req.body,
+                managerId,
+            );
+
+            return res.status(200).json({ workplace });
+        } catch (error) {
+            const statusCode = error.statusCode
+                || (error.name === 'ValidationError' ? 400 : 500);
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to update workplace'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const updateMyWorkplace = buildUpdateMyWorkplaceController();
+
+function buildRegenerateInviteCodeController(service = workplaceService) {
+    return async function regenerateInviteCode(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const workplace = await service.regenerateInviteCode(managerId);
+
+            return res.status(200).json({ workplace });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to regenerate invite code'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const regenerateInviteCode = buildRegenerateInviteCodeController();
+
+// POST /api/workplaces/mine/invite-email — email the invite code to a new
+// employee (FR-24). APP_BASE_URL lets a deployed app put its public address
+// in the link; locally it falls back to whatever host the request came in on.
+function buildSendInviteEmailController(service = workplaceService) {
+    return async function sendInviteEmail(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const { email } = req.body || {};
+            const baseUrl = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
+
+            const result = await service.sendInviteEmail(
+                managerId,
+                email,
+                `${baseUrl}/employee-join.html`,
+            );
+
+            return res.status(200).json({
+                message: `Invite sent to ${result.email}`,
+                previewUrl: result.previewUrl,
+            });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                error: statusCode === 500
+                    ? 'Unable to send invite email'
+                    : error.message,
+            });
+        }
+    };
+}
+
+const sendInviteEmail = buildSendInviteEmailController();
+
 module.exports = {
     buildCreateWorkplaceController,
     createWorkplace,
     buildGetMyWorkplaceController,
     getMyWorkplace,
+    buildUpdateMyWorkplaceController,
+    updateMyWorkplace,
+    buildRegenerateInviteCodeController,
+    regenerateInviteCode,
+    buildSendInviteEmailController,
+    sendInviteEmail,
 };

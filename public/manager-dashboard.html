@@ -34,15 +34,15 @@
         <a href="manager-shift-approvals.html" class="mgr-nav-item">
           <span class="material-icons">assignment</span> Shift Approvals
         </a>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        <a href="manager-shifts.html" class="mgr-nav-item">
           <span class="material-icons">calendar_today</span> All Shifts
-        </span>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        </a>
+        <a href="manager-shift-history.html" class="mgr-nav-item">
           <span class="material-icons">history</span> Shift History
-        </span>
-        <span class="mgr-nav-item mgr-nav-item--disabled" title="Not built yet">
+        </a>
+        <a href="manager-business-settings.html" class="mgr-nav-item">
           <span class="material-icons">settings</span> Business Settings
-        </span>
+        </a>
         <a href="manager-chat.html" class="mgr-nav-item">
           <span class="material-icons">forum</span> Team Chat
         </a>
@@ -91,23 +91,34 @@
         <button type="button" id="dashCopyInviteBtn" class="btn-outline mgr-invite-copy-btn">
           <span class="material-icons">content_copy</span> Copy
         </button>
+
+        <form id="inviteEmailForm" class="mgr-invite-send" novalidate>
+          <label for="inviteEmail">Send the code to a new employee</label>
+          <div class="mgr-invite-send-row">
+            <input type="email" id="inviteEmail" placeholder="new.employee@example.com" maxlength="254" autocomplete="off">
+            <button type="submit" id="inviteEmailBtn" class="btn-primary mgr-invite-send-btn">
+              <span class="material-icons">send</span> Send Invite
+            </button>
+          </div>
+          <div id="inviteEmailMessage" class="alert-box hidden"></div>
+        </form>
       </div>
 
       <div class="mgr-stats-grid">
-        <div class="mgr-stat-card mgr-stat-card--static">
+        <a href="manager-approvals.html" class="mgr-stat-card">
           <div class="mgr-stat-icon" style="background:#DDF2E7;">
             <span class="material-icons" style="color:#166534;">group</span>
           </div>
-          <p class="mgr-stat-value">—</p>
+          <p class="mgr-stat-value" id="statActiveEmployees">—</p>
           <p class="mgr-stat-label">Active Employees</p>
-        </div>
-        <div class="mgr-stat-card mgr-stat-card--static">
+        </a>
+        <a href="manager-shifts.html?status=open" class="mgr-stat-card">
           <div class="mgr-stat-icon" style="background:#DCEAF7;">
             <span class="material-icons" style="color:#2B6CB0;">calendar_today</span>
           </div>
-          <p class="mgr-stat-value">—</p>
+          <p class="mgr-stat-value" id="statOpenShifts">—</p>
           <p class="mgr-stat-label">Open Shifts</p>
-        </div>
+        </a>
         <a href="manager-shift-approvals.html" class="mgr-stat-card">
           <div class="mgr-stat-icon" style="background:#FEF9C3;">
             <span class="material-icons" style="color:#92400E;">assignment</span>

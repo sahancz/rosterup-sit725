@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
 
+  loadEmployees();
   loadPendingRequests();
 });
 
@@ -21,6 +22,58 @@ function renderSidebar(user) {
   document.getElementById('userName').textContent = `${user.first_name} ${user.last_name}`;
   const initials = `${user.first_name[0] || ''}${user.last_name[0] || ''}`.toUpperCase();
   document.getElementById('userAvatar').textContent = initials || '--';
+}
+
+async function loadEmployees() {
+  const listEl = document.getElementById('employeeList');
+  const countEl = document.getElementById('activeEmployeeCount');
+  const token = localStorage.getItem('rosterup_token');
+
+  try {
+    const response = await fetch('/api/manager/employees', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      localStorage.removeItem('rosterup_token');
+      localStorage.removeItem('rosterup_user');
+      window.location.href = 'sign-in.html';
+      return;
+    }
+
+    const data = await response.json();
+    if (!response.ok || !data.success || !Array.isArray(data.employees)) {
+      listEl.innerHTML = '<div class="mgr-empty-card"><p>Could not load employee requests.</p></div>';
+      return;
+    }
+
+    const employees = data.employees.filter(employee => employee.workplace_status === 'approved');
+    countEl.textContent = employees.length;
+
+    if (employees.length === 0) {
+      listEl.innerHTML = '';
+      return;
+    }
+
+    listEl.innerHTML = employees.map(employeeCardHtml).join('');
+  } catch (error) {
+    console.error('Failed to load employees:', error);
+    listEl.innerHTML = '<div class="mgr-empty-card"><p>Could not load employee requests.</p></div>';
+  }
+}
+
+function employeeCardHtml(employee) {
+  const initials = `${employee.first_name[0] || ''}${employee.last_name[0] || ''}`.toUpperCase();
+
+  return `
+    <article class="mwv-employee-card">
+      <div class="mgr-avatar">${escapeHtml(initials)}</div>
+      <div style="min-width:0;">
+        <p class="mgr-request-name">${escapeHtml(employee.first_name)} ${escapeHtml(employee.last_name)}</p>
+        <p class="mgr-request-sub">${escapeHtml(employee.email)}</p>
+      </div>
+    </article>
+  `;
 }
 
 async function loadPendingRequests() {
@@ -131,6 +184,7 @@ async function processRequest(userId, action) {
 
     if (response.ok && data.success) {
       showGlobalMessage(`Successfully ${action}d ${data.employeeName}.`, 'success');
+      loadEmployees();
 
       if (card) card.remove();
 

@@ -9,6 +9,21 @@ function createHttpError(message, statusCode) {
     return error;
 };
 
+const MAX_REASON_LENGTH = 300;
+
+// Trims a free-text reason and returns '' when there isn't one. Checked
+// here (not just by the schema) because findOneAndUpdate doesn't run
+// maxlength validation by default.
+function normaliseReason(reason) {
+    const text = typeof reason === 'string' ? reason.trim() : '';
+
+    if (text.length > MAX_REASON_LENGTH) {
+        throw createHttpError(`Reason must be ${MAX_REASON_LENGTH} characters or fewer.`, 400);
+    }
+
+    return text;
+}
+
 // Employee (or manager) posts one of their own shifts for cover — FR-15.
 // workplace and posted_by are always resolved server-side from the
 // authenticated user rather than trusted from the request body — the old
@@ -85,13 +100,150 @@ async function withdrawShiftsService(shiftId, userId, dependencies = {}) {
     return shift;
 }
 
-async function getShiftsService(filter) {
-    // Populated so the client can show who posted the shift without a
-    // separate lookup (same pattern as listPendingClaims below).
-    const shifts = await Shift.find(filter)
-        .populate('posted_by', 'first_name last_name')
-        .sort({ shift_date: 1, start_time: 1 });
+// Employee withdraws a shift they posted themselves — FR-23. The other
+// direction from withdrawShiftsService above: that one undoes a claim on
+// someone else's shift, this one takes your own posted shift off the board.
+// Only allowed while the shift is still 'open' (no one has claimed it yet),
+// and it's marked 'cancelled' rather than deleted so it still shows up in
+// shift history. posted_by and status are both in the filter so the check
+// and the update happen in one atomic step, same as claimShift. The reason
+// is optional and kept as cancel_reason for shift history.
+async function withdrawPostedShiftService(shiftId, userId, reason, dependencies = {}) {
+    if (!userId) {
+        throw createHttpError('An authenticated user is required', 401);
+    }
+
+    const cancelReason = normaliseReason(reason);
+
+    const ShiftModel = dependencies.ShiftModel || Shift;
+
+    const update = { status: 'cancelled' };
+    if (cancelReason) update.cancel_reason = cancelReason;
+
+    const shift = await ShiftModel.findOneAndUpdate(
+        {
+            _id: shiftId,
+            posted_by: userId,
+            status: 'open',
+        },
+        update,
+        { new: true }
+    );
+
+    if (!shift) {
+        throw createHttpError('Open shift not found, or it was not posted by you.', 404);
+    }
+
+    return shift;
+}
+
+// options.withClaimHistory also populates who each past claim decision was
+// about — only the manager's shift history asks for this, so employees
+// browsing open shifts don't see who else was turned down.
+async function getShiftsService(filter, userId, dependencies = {}, options = {}) {
+    if (!userId) {
+        throw createHttpError('An authenticated user is required', 401);
+    }
+
+    const ShiftModel = dependencies.ShiftModel || Shift;
+    const UserModel = dependencies.UserModel || User;
+    const resolveWorkplaceId = dependencies.resolveUserWorkplaceId || resolveUserWorkplaceId;
+    const user = await UserModel.findById(userId);
+    const workplaceId = user && await resolveWorkplaceId(user, dependencies);
+
+    if (!workplaceId) {
+        return [];
+    }
+
+    const scopedFilter = {
+        ...filter,
+        workplace: workplaceId,
+    };
+
+    let query = ShiftModel.find(scopedFilter)
+        .populate('posted_by', 'first_name last_name');
+
+    if (!options.withClaimHistory) {
+        // Past claim decisions (who was rejected and why) are for the
+        // manager, not every coworker browsing open shifts.
+        query = query.select('-claim_history');
+    } else {
+        query = query
+            .populate('claimed_by', 'first_name last_name')
+            .populate('claim_history.employee', 'first_name last_name');
+    }
+
+    const shifts = await query.sort({ shift_date: 1, start_time: 1 });
     return shifts;
+}
+
+function refId(ref) {
+    if (!ref) return null;
+    return String(ref._id || ref);
+}
+
+// Works out what a history entry means from this employee's point of view.
+// A shift only ever reaches here through one of the three $or branches in
+// getShiftHistoryService, so one of these always matches.
+function historyOutcomeFor(shift, userId) {
+    const me = String(userId);
+
+    if (shift.status === 'covered' && refId(shift.claimed_by) === me) {
+        return 'covered';
+    }
+
+    if (refId(shift.posted_by) === me && shift.status === 'covered') {
+        return 'covered_for_you';
+    }
+
+    if (refId(shift.posted_by) === me && shift.status === 'cancelled') {
+        return 'withdrawn';
+    }
+
+    return 'claim_rejected';
+}
+
+// Employee shift history — FR-16. Shifts this employee covered for someone
+// else, their own posted shifts that were covered or withdrawn, and claims
+// of theirs a manager rejected. Scoped to their workplace, same as
+// getShiftsService.
+async function getShiftHistoryService(userId, dependencies = {}) {
+    if (!userId) {
+        throw createHttpError('An authenticated user is required', 401);
+    }
+
+    const ShiftModel = dependencies.ShiftModel || Shift;
+    const UserModel = dependencies.UserModel || User;
+    const resolveWorkplaceId = dependencies.resolveUserWorkplaceId || resolveUserWorkplaceId;
+    const user = await UserModel.findById(userId);
+    const workplaceId = user && await resolveWorkplaceId(user, dependencies);
+
+    if (!workplaceId) {
+        return [];
+    }
+
+    const shifts = await ShiftModel.find({
+        workplace: workplaceId,
+        $or: [
+            { claimed_by: userId, status: 'covered' },
+            { posted_by: userId, status: { $in: ['covered', 'cancelled'] } },
+            { claim_history: { $elemMatch: { employee: userId, outcome: 'rejected' } } },
+        ],
+    })
+        .populate('posted_by', 'first_name last_name')
+        .populate('claimed_by', 'first_name last_name')
+        .sort({ shift_date: -1, start_time: -1 })
+        .lean();
+
+    // Only this employee's own claim decisions go back to them — not who
+    // else was turned down for the same shift, or why.
+    return shifts.map((shift) => ({
+        ...shift,
+        claim_history: (shift.claim_history || []).filter(
+            (entry) => refId(entry.employee) === String(userId)
+        ),
+        outcome: historyOutcomeFor(shift, userId),
+    }));
 }
 
 async function listPendingClaims(managerId, dependencies = {}) {
@@ -133,10 +285,13 @@ async function claimShift(shiftId, employeeId, dependencies = {}) {
 
     const ShiftModel = dependencies.ShiftModel || Shift;
 
+    // posted_by: $ne stops an employee claiming a shift they posted
+    // themselves — otherwise they could "cover" their own shift.
     const shift = await ShiftModel.findOneAndUpdate(
         {
             _id: shiftId,
             status: 'open',
+            posted_by: { $ne: employeeId },
         },
         {
             claimed_by: employeeId,
@@ -146,7 +301,7 @@ async function claimShift(shiftId, employeeId, dependencies = {}) {
     );
 
     if (!shift) {
-        throw createHttpError('Open shift not found.', 404);
+        throw createHttpError('Open shift not found, or it is your own shift.', 404);
     }
 
     return shift;
@@ -161,13 +316,20 @@ const VALID_CLAIM_ACTIONS = ['approve', 'reject'];
 // whether the shift doesn't exist, isn't pending, or belongs to a
 // different manager's workplace, so a manager can't learn anything about
 // another workplace's shifts just by guessing ids.
-async function processShiftClaim(shiftId, managerId, action, dependencies = {}) {
+async function processShiftClaim(shiftId, managerId, action, reason, dependencies = {}) {
     if (!managerId) {
         throw createHttpError('An authenticated manager is required', 401);
     }
 
     if (!VALID_CLAIM_ACTIONS.includes(action)) {
         throw createHttpError("Invalid action. Must be 'approve' or 'reject'.", 400);
+    }
+
+    // The employee sees this in their shift history, so a rejection always
+    // has to say why. Approving doesn't need one.
+    const decisionReason = normaliseReason(reason);
+    if (action === 'reject' && !decisionReason) {
+        throw createHttpError('Please give a reason for rejecting this claim.', 400);
     }
 
     const ShiftModel = dependencies.ShiftModel || Shift;
@@ -193,6 +355,18 @@ async function processShiftClaim(shiftId, managerId, action, dependencies = {}) 
         throw createHttpError('Shift claim not found.', 404);
     }
 
+    // Record the decision before claimed_by is cleared on reject, otherwise
+    // there'd be no trace of who was rejected for shift history (FR-16).
+    shift.claim_history = [
+        ...(shift.claim_history || []),
+        {
+            employee: shift.claimed_by,
+            outcome: action === 'approve' ? 'approved' : 'rejected',
+            decided_at: new Date(),
+            ...(decisionReason ? { reason: decisionReason } : {}),
+        },
+    ];
+
     if (action === 'approve') {
         shift.status = 'covered';
     } else {
@@ -207,11 +381,12 @@ async function processShiftClaim(shiftId, managerId, action, dependencies = {}) 
 
 module.exports = {
     getShiftsService,
+    getShiftHistoryService,
     listPendingClaims,
     postShiftsService,
     withdrawShiftsService,
+    withdrawPostedShiftService,
     claimShift,
     processShiftClaim,
 };
     
-

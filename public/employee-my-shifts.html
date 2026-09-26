@@ -33,9 +33,9 @@
         <a href="employee-my-shifts.html" class="emp-nav-item emp-nav-item--active">
           <span class="material-icons">calendar_today</span> My Shifts
         </a>
-        <span class="emp-nav-item emp-nav-item--disabled" title="Not built yet">
+        <a href="employee-shift-history.html" class="emp-nav-item">
           <span class="material-icons">history</span> Shift History
-        </span>
+        </a>
         <a href="employee-chat.html" class="emp-nav-item">
           <span class="material-icons">forum</span> Team Chat
         </a>
@@ -61,7 +61,7 @@
     <main class="emp-main">
       <div class="emp-page-header">
         <h1>My Shifts</h1>
-        <p>Post one of your shifts for cover, or withdraw a shift you've claimed.</p>
+        <p>Post one of your shifts for cover, withdraw a shift you posted, or withdraw a shift you've claimed.</p>
       </div>
 
       <div class="msh-panel">
@@ -103,6 +103,16 @@
 
       <div class="msh-panel">
         <div class="emp-panel-header">
+          <h2>My Posted Shifts</h2>
+        </div>
+
+        <div id="postedShiftsList" class="eos-list">
+          <div class="emp-empty-card"><p>Loading…</p></div>
+        </div>
+      </div>
+
+      <div class="msh-panel">
+        <div class="emp-panel-header">
           <h2>My Claimed Shifts</h2>
         </div>
 
@@ -113,6 +123,7 @@
     </main>
   </div>
 
+  <script src="js/emp-utils.js"></script>
   <script src="js/employee-my-shifts.js"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController } = require('../controllers/shifts.controller');
+const { getOpenShiftsController, listPendingClaims, processShiftClaim, claimShift, postShiftsController, withdrawShiftsController, withdrawPostedShift, getShiftHistory } = require('../controllers/shifts.controller');
 const { requireAuth, requireRole } = require('../middleware/auth.middleware');
 
 
@@ -14,7 +14,7 @@ function notImplemented(req, res) {
 router.post('/', requireAuth, postShiftsController);
 
 // Get Shifts
-router.get('/', getOpenShiftsController);
+router.get('/', requireAuth, getOpenShiftsController);
 
 // Manager Lists Pending Shift Claims
 // (The controller itself already checks req.user and the manager role, but
@@ -24,6 +24,10 @@ router.get('/', getOpenShiftsController);
 router.get('/claims', requireAuth, requireRole('manager'), listPendingClaims);
 // Employee who claimed shift withdraws claim
 router.put('/withdraw', requireAuth, withdrawShiftsController);
+
+// Caller's own shift history (FR-16). Must stay above GET /:id, or
+// Express would treat "history" as a shift id.
+router.get('/history', requireAuth, getShiftHistory);
 
 // Get Shift by ID
 router.get('/:id', notImplemented);
@@ -41,6 +45,6 @@ router.post('/:id/claim', requireAuth, claimShift);
 router.put('/:id/claim', requireAuth, requireRole('manager'), processShiftClaim);
 
 // Original Employee Withdraws Shift
-router.post('/:id/withdraw', notImplemented);
+router.post('/:id/withdraw', requireAuth, withdrawPostedShift);
 
 module.exports = router;

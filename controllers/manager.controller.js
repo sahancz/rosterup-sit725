@@ -1,48 +1,87 @@
 const User = require('../models/User');
 const Workplace = require('../models/Workplace');
+const usersService = require('../services/users.service');
+const shiftsService = require('../services/shifts.service');
+
+function buildGetManagerEmployeesController(service = usersService) {
+    return async function getManagerEmployees(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const employees = await service.getWorkplaceEmployeesService(managerId);
+
+            return res.status(200).json({
+                success: true,
+                count: employees.length,
+                employees,
+            });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+}
+
+function buildGetManagerShiftsController(service = shiftsService) {
+    return async function getManagerShifts(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const shifts = await service.getShiftsService({}, managerId, {}, { withClaimHistory: true });
+
+            return res.status(200).json({
+                success: true,
+                count: shifts.length,
+                shifts,
+            });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    };
+}
+
+exports.buildGetManagerEmployeesController = buildGetManagerEmployeesController;
+exports.buildGetManagerShiftsController = buildGetManagerShiftsController;
+exports.getManagerEmployees = buildGetManagerEmployeesController();
+exports.getManagerShifts = buildGetManagerShiftsController();
 
 //GET /api/manager/pending-employees
 //(This used to return every pending employee for every manager, with no
 //workplace filter at all — any manager could see another manager's pending
 //employees. Scoped to the signed-in manager's own workplace below, the
 //same way listPendingClaims is already scoped for shifts.)
-exports.getPendingEmployees = async (req, res) => {
-    try {
-        const managerId = req.user?.id || req.user?._id;
-        const workplace = await Workplace.findOne({ manager_id: managerId, active: true });
 
-        //A manager with no workplace yet can't have anyone pending against
-        //it — nobody can register with an invite code that doesn't exist.
-        if (!workplace) {
+function buildGetPendingEmployeesController(service = usersService) {
+    return async function getPendingEmployees(req, res) {
+        try {
+            const managerId = req.user?.id || req.user?._id;
+            const employees = await service.getPendingEmployeesService(managerId);
+
             return res.status(200).json({
                 success: true,
-                count: 0,
-                employees: []
+                count: employees.length,
+                employees,
+            });
+        } catch (error) {
+            const statusCode = error.statusCode || 500;
+
+            return res.status(statusCode).json({
+                success: false,
+                message: error.message,
             });
         }
+    };
+}
 
-        //Find all active employees whose workplace status is currently pending
-        const pendingEmployees = await User.find({
-            role: 'employee',
-            workplace_status: 'pending',
-            workplace: workplace._id,
-            active: true
-        }).select('first_name last_name email role workplace_status');
-
-        return res.status(200).json({
-            success: true,
-            count: pendingEmployees.length,
-            employees: pendingEmployees
-        });
-    } catch (error) {
-        console.error("Fetch Pending Employees Error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error while fetching pending requests.",
-            error: error.message
-        });
-    }
-};
+exports.buildGetPendingEmployeesController = buildGetPendingEmployeesController;
+exports.getPendingEmployees = buildGetPendingEmployeesController();
 
 //PATCH /api/manager/process-employee/:id
 exports.processEmployeeRequest = async (req, res) => {

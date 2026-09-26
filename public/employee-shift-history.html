@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RosterUp — Shift History</title>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+  <link rel="stylesheet" href="/style/main.css">
+  <link rel="stylesheet" href="/style/sign-in.css">
+  <link rel="stylesheet" href="/style/employee-dashboard.css">
+  <link rel="stylesheet" href="/style/employee-open-shifts.css">
+  <link rel="stylesheet" href="/style/employee-my-shifts.css">
+  <link rel="stylesheet" href="/style/employee-shift-history.css">
+</head>
+<body>
+
+  <div class="emp-shell">
+    <aside class="emp-sidebar">
+      <div class="emp-sidebar-header">
+        <div class="auth-logo">
+          <div class="auth-logo-box" style="width:32px;height:32px;font-size:0.875rem;">R</div>
+          <span class="auth-logo-text" style="font-size:1rem;">RosterUp</span>
+        </div>
+      </div>
+
+      <nav class="emp-nav">
+        <a href="employee-dashboard.html" class="emp-nav-item">
+          <span class="material-icons">dashboard</span> Dashboard
+        </a>
+        <a href="employee-open-shifts.html" class="emp-nav-item">
+          <span class="material-icons">list</span> Open Shifts
+        </a>
+        <a href="employee-my-shifts.html" class="emp-nav-item">
+          <span class="material-icons">calendar_today</span> My Shifts
+        </a>
+        <a href="employee-shift-history.html" class="emp-nav-item emp-nav-item--active">
+          <span class="material-icons">history</span> Shift History
+        </a>
+        <a href="employee-chat.html" class="emp-nav-item">
+          <span class="material-icons">forum</span> Team Chat
+        </a>
+        <a href="employee-profile.html" class="emp-nav-item">
+          <span class="material-icons">person</span> Profile
+        </a>
+      </nav>
+
+      <div class="emp-sidebar-footer">
+        <div class="emp-user-row">
+          <div class="emp-avatar" id="userAvatar">--</div>
+          <div style="min-width:0;">
+            <p class="emp-user-name" id="userName">Employee</p>
+            <p class="emp-user-role" id="userRole">Employee</p>
+          </div>
+        </div>
+        <button class="emp-logout-btn" id="logoutLink">
+          <span class="material-icons">logout</span> Logout
+        </button>
+      </div>
+    </aside>
+
+    <main class="emp-main">
+      <div class="emp-page-header">
+        <h1>Shift History</h1>
+        <p>Shifts you covered, your own shifts that were covered or withdrawn, and claims that weren't approved.</p>
+      </div>
+
+      <div class="msh-panel">
+        <div class="shh-filters" id="historyFilters">
+          <button type="button" class="shh-filter shh-filter--active" data-outcome="all">All</button>
+          <button type="button" class="shh-filter" data-outcome="covered">Covered by me</button>
+          <button type="button" class="shh-filter" data-outcome="covered_for_you">Covered for me</button>
+          <button type="button" class="shh-filter" data-outcome="withdrawn">Withdrawn</button>
+          <button type="button" class="shh-filter" data-outcome="claim_rejected">Not approved</button>
+        </div>
+
+        <div id="historyList" class="eos-list">
+          <div class="emp-empty-card"><p>Loading…</p></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/emp-utils.js"></script>
+  <script src="js/employee-shift-history.js"></script>
+</body>
+</html>

@@ -118,13 +118,27 @@ function claimCardHtml(claim) {
       </div>
       ` : ''}
 
+      ${claim.note ? `<p class="msa-note">Reason for cover: “${escapeHtml(claim.note)}”</p>` : ''}
+
       <div class="msa-actions">
-        <button class="msa-reject" data-shift-id="${claim._id}" data-action="reject">
+        <button class="msa-reject" data-shift-id="${claim._id}" data-action="reject" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">close</span> Reject
         </button>
-        <button class="msa-approve" data-shift-id="${claim._id}" data-action="approve">
+        <button class="msa-approve" data-shift-id="${claim._id}" data-action="approve" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
           <span class="material-icons">check</span> Approve Cover
         </button>
+      </div>
+
+      <div class="msa-reject-form hidden">
+        <label for="rejectReason-${claim._id}">Reason for rejecting (shown to ${escapeHtml(claimedByName || 'the employee')})</label>
+        <textarea id="rejectReason-${claim._id}" rows="2" maxlength="300" placeholder="e.g. We already have enough staff on that shift"></textarea>
+        <p class="msa-reject-error hidden">Please give a reason.</p>
+        <div class="msa-actions">
+          <button class="msa-cancel" data-action="cancel-reject">Cancel</button>
+          <button class="msa-reject" data-shift-id="${claim._id}" data-action="confirm-reject" data-claimant="${escapeHtml(claimedByName || 'this employee')}">
+            <span class="material-icons">close</span> Confirm Reject
+          </button>
+        </div>
       </div>
     </div>
   `;
@@ -168,10 +182,36 @@ async function handleActionClick(e) {
   const btn = e.target.closest('button[data-action]');
   if (!btn || btn.disabled) return;
 
-  const shiftId = btn.dataset.shiftId;
-  const action = btn.dataset.action;
   const card = btn.closest('.msa-card');
+  const rejectForm = card.querySelector('.msa-reject-form');
+
+  // Reject opens a reason box first (the employee sees the reason in their
+  // shift history) — that second step doubles as the "are you sure?".
+  if (btn.dataset.action === 'reject') {
+    rejectForm.classList.remove('hidden');
+    card.querySelector('.msa-actions').classList.add('hidden');
+    rejectForm.querySelector('textarea').focus();
+    return;
+  }
+
+  if (btn.dataset.action === 'cancel-reject') {
+    rejectForm.classList.add('hidden');
+    card.querySelector('.msa-actions').classList.remove('hidden');
+    return;
+  }
+
+  const shiftId = btn.dataset.shiftId;
+  const action = btn.dataset.action === 'confirm-reject' ? 'reject' : 'approve';
+  const claimant = btn.dataset.claimant;
   const token = localStorage.getItem('rosterup_token');
+  const reason = action === 'reject' ? rejectForm.querySelector('textarea').value.trim() : undefined;
+
+  if (action === 'reject' && !reason) {
+    rejectForm.querySelector('.msa-reject-error').classList.remove('hidden');
+    return;
+  }
+
+  hideActionMessage();
 
   const buttons = card.querySelectorAll('button[data-action]');
   buttons.forEach(b => { b.disabled = true; });
@@ -186,7 +226,7 @@ async function handleActionClick(e) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ action })
+      body: JSON.stringify({ action, reason })
     });
 
     if (response.status === 401) {
@@ -199,10 +239,15 @@ async function handleActionClick(e) {
     if (!response.ok) {
       const data = await response.json().catch(() => ({}));
       buttons.forEach(b => { b.disabled = false; });
-      btn.title = data.error || 'Could not process this claim.';
+      showActionMessage(data.error || 'Could not process this claim.', 'error');
       loadPendingClaims();
       return;
     }
+
+    showActionMessage(action === 'approve'
+      ? `Approved — ${claimant} is now covering this shift.`
+      : `Rejected ${claimant}'s claim — the shift is back in Open Shifts. You can still see it in Shift History.`,
+    'success');
 
     // Either way the card no longer belongs in the pending list — approved
     // shifts are covered, rejected ones go back to Open Shifts — so just
@@ -211,6 +256,16 @@ async function handleActionClick(e) {
   } catch (err) {
     console.error(`Failed to ${action} shift claim:`, err);
     buttons.forEach(b => { b.disabled = false; });
-    btn.title = 'Connection error — please try again.';
+    showActionMessage('Connection error — please try again.', 'error');
   }
+}
+
+function showActionMessage(text, type) {
+  const box = document.getElementById('actionMessage');
+  box.textContent = text;
+  box.className = `alert-box alert-${type}`;
+}
+
+function hideActionMessage() {
+  document.getElementById('actionMessage').className = 'alert-box hidden';
 }

@@ -29,11 +29,6 @@ async function loadOpenShifts() {
   const token = localStorage.getItem('rosterup_token');
 
   try {
-    // Note: /api/shifts isn't scoped to the signed-in employee's own
-    // workplace — the cached profile doesn't currently carry a workplace id
-    // to filter by, so this shows every open shift in the system. That's
-    // fine for the current single-workplace demo data, but would need a
-    // workplace filter added once there's more than one workplace in play.
     const response = await fetch('/api/shifts', {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     });
@@ -71,8 +66,28 @@ function renderShifts(shifts) {
     return;
   }
 
-  subtitle.textContent = `${shifts.length} shift${shifts.length !== 1 ? 's' : ''} available to claim`;
+  const own = shifts.filter(isOwnShift).length;
+  const claimable = shifts.length - own;
+  subtitle.textContent = `${claimable} shift${claimable !== 1 ? 's' : ''} available to claim`
+    + (own ? ` · ${own} posted by you` : '');
   listEl.innerHTML = shifts.map(shiftCardHtml).join('');
+}
+
+// The API refuses to let you claim your own shift; this just hides the
+// button so it isn't offered in the first place.
+function isOwnShift(shift) {
+  const userJson = localStorage.getItem('rosterup_user');
+  const user = userJson ? JSON.parse(userJson) : null;
+  const postedById = shift.posted_by && (shift.posted_by._id || shift.posted_by);
+  return Boolean(user && postedById && String(postedById) === String(user.id));
+}
+
+// " · 15 Sept" — when the shift was posted, or nothing if unknown.
+function postedOn(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return ` · ${escapeHtml(date.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }))}`;
 }
 
 function shiftCardHtml(shift) {
@@ -98,28 +113,19 @@ function shiftCardHtml(shift) {
           <div>
             <p class="eos-role">${escapeHtml(shift.shift_role)}</p>
             <p class="eos-time"><span class="material-icons">schedule</span> ${escapeHtml(shift.start_time)} — ${escapeHtml(shift.end_time)}</p>
-            <p class="eos-posted-by">Offered by <strong>${escapeHtml(postedByName)}</strong></p>
+            <p class="eos-posted-by">Offered by <strong>${escapeHtml(postedByName)}</strong>${postedOn(shift.createdAt)}</p>
           </div>
           <span class="eos-badge">Open</span>
         </div>
         <div class="eos-footer">
-          <p>Available to claim</p>
-          <button class="eos-claim-btn" data-shift-id="${shift._id}">Claim Shift</button>
+          ${isOwnShift(shift)
+            ? '<p>This is your shift — withdraw it from My Shifts</p>'
+            : `<p>Available to claim</p>
+          <button class="eos-claim-btn" data-shift-id="${shift._id}">Claim Shift</button>`}
         </div>
       </div>
     </div>
   `;
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str == null ? '' : String(str);
-  return div.innerHTML;
-}
-
-function capitalize(word) {
-  if (!word) return '';
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 async function handleLogout(e) {
