@@ -301,6 +301,24 @@ Approve sets the employee's `workplace_status` to `"approved"`. Reject sets it t
 
 ### Users (`/api/users`)
 
+**PUT /me** 🔒 — updates the signed-in user's own name and email (FR-22). Acts on the id in the token, never an id from the URL. Returns `400` for missing fields or an invalid email, `409` if the email belongs to another account.
+```json
+// Request
+{ "first_name": "Sarah", "last_name": "Jones", "email": "sarah.jones@test.com" }
+```
+```json
+// Response (200) — same user shape as login
+{ "success": true, "message": "Profile updated.", "user": { "id": "...", "first_name": "Sarah", "last_name": "Jones", "email": "sarah.jones@test.com", "role": "employee", "workplace_status": "approved" } }
+```
+
+**PUT /me/password** 🔒 — changes the signed-in user's password (FR-22). The new password must be at least 8 characters and different from the current one. A wrong current password returns `400` (not `401`, since the session itself is still valid).
+```json
+// Request
+{ "current_password": "Password123!", "new_password": "NewPassword456!" }
+```
+
+Reading the current profile is `GET /api/auth/me`.
+
 **Not yet implemented** (all return a placeholder `501`): `GET /:id`, `PUT /:id`, `PUT /:id/password`, `PUT /:id/status`.
 
 ### Real-time chat

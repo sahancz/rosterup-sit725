@@ -13,6 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('logoutLink').addEventListener('click', handleLogout);
+  setupProfileForms({
+    onProfileUpdated: (updated) => {
+      renderSidebar(updated);
+      renderProfile(updated);
+    }
+  });
 
   refreshUser();
 });
@@ -29,8 +35,7 @@ function renderProfile(user) {
   document.getElementById('profileName').textContent = `${user.first_name} ${user.last_name}`;
   document.getElementById('profileMeta').textContent = `Manager · ${user.email}`;
 
-  document.getElementById('fieldName').value = `${user.first_name} ${user.last_name}`;
-  document.getElementById('fieldEmail').value = user.email;
+  fillProfileFields(user);
 }
 
 async function refreshUser() {
